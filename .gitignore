@@ -1,0 +1,14 @@
+# Godot 4 — arquivos gerados automaticamente
+.godot/
+*.uid
+
+# Export
+export/
+*.pck
+*.exe
+*.apk
+*.aab
+
+# OS
+.DS_Store
+Thumbs.db
