@@ -1,0 +1,24 @@
+networks:
+  traefik:
+    name: traefik_network
+    external: true
+
+services:
+  transporte-eficiente:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${IMAGE_NAME}
+    container_name: transp_eficiente_frt
+    environment:
+      - NODE_ENV=production
+      - VITE_PUBLIC_API_URL=https://hom-api-transpef.teresina.pi.gov.br/api/v1/
+      - VITE_GOOGLE_MAPS_API_KEY=AIzaSyCztfAw5XuwX85eK1WXFhsOlIX5iDxbGf8
+    restart: always
+    networks:
+      - traefik
+    command: sh -c "serve -s dist -l ${APP_PORT}"
+    labels:
+      - "traefik.enable=True"
+      - "traefik.http.routers.${PROJECT_NAME_TRAEFIK}.rule=Host(`${URL_HOMOLOG}`)"
+      - "traefik.http.routers.${PROJECT_NAME_TRAEFIK}.entrypoints=websecure"
