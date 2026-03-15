@@ -1,8 +1,12 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://cb4hi7ak01tqb"]
 
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="1"]
+[ext_resource type="Script" uid="uid://mw7uxuxypsot" path="res://scripts/MapGenerator.gd" id="2"]
 
-[node name="World" type="Node2D"]
+[node name="World" type="Node2D" unique_id=1230463726]
 
-[node name="Player" parent="." instance=ExtResource("1")]
-position = Vector2(400, 300)
+[node name="Map" type="Node2D" parent="." unique_id=197809800]
+script = ExtResource("2")
+
+[node name="Player" parent="." unique_id=310645907 instance=ExtResource("1")]
+position = Vector2(48, 200)
