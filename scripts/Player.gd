@@ -45,6 +45,7 @@ var attack_requested := false
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var attack_area: Area2D = $AttackArea2D
 @onready var attack_shape: CollisionShape2D = $AttackArea2D/CollisionShape2D
+@onready var skill_manager: Node = $SkillManager
 
 func _ready() -> void:
 	_setup_wolf_animations()
@@ -93,6 +94,14 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	var move_dir := _get_move_input()
 
+	# Skill input — must be before is_attacking/is_dashing/else block
+	# so skill_e is never suppressed by those states
+	if Input.is_action_just_pressed("skill_q"):
+		if not is_dashing and not is_attacking:
+			skill_manager.use_q(self)
+	if Input.is_action_just_pressed("skill_e"):
+		skill_manager.use_e(self, get_global_mouse_position())
+
 	if cooldown_timer > 0:
 		cooldown_timer -= delta
 	if attack_cooldown_timer > 0:
@@ -122,6 +131,7 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 	_update_animation(move_dir)
+	queue_redraw()
 
 func _update_animation(move_dir: Vector2) -> void:
 	var visual_dir := move_dir
@@ -228,6 +238,10 @@ func _apply_attack_damage() -> void:
 		if area == attack_area:
 			continue
 		_damage_target(area)
+
+func _draw() -> void:
+	if skill_manager and skill_manager.skill_q_active_timer > 0.0:
+		draw_arc(Vector2.ZERO, 80.0, 0.0, TAU, 32, Color(0.6, 0.0, 1.0, 0.8), 2.0)
 
 func _damage_target(target: Node) -> void:
 	if hit_targets.has(target):
