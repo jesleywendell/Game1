@@ -1,22 +1,27 @@
 extends CharacterBody2D
 
+signal health_changed(current: float, maximum: float)
+signal died
+
 @export var speed: float = 200.0
 @export var dash_speed: float = 700.0
 @export var dash_time: float = 0.15
-@export var dash_cooldown: float = 1
+@export var dash_cooldown: float = 1.0
 @export var attack_damage: float = 1.0
 @export var attack_duration: float = 0.35
 @export var attack_cooldown: float = 0.2
 @export var attack_hitbox_distance: float = 28.0
+@export var max_health: float = 100.0
 
 const FRAME_W := 64
-const FRAME_H := 64
+const FRAME_H := 70
 const IDLE_FRAME_COUNT := 4
-const RUN_FRAME_COUNT := 8
-const BITE_FRAME_COUNT := 15
-const WOLF_IDLE_PATH := "res://assets/critters/critters/wolf/wolf-idle.png"
-const WOLF_RUN_PATH := "res://assets/critters/critters/wolf/wolf-run.png"
-const WOLF_BITE_PATH := "res://assets/critters/critters/wolf/wolf-bite.png"
+const RUN_FRAME_COUNT := 4
+const BITE_FRAME_COUNT := 4
+const AZRAEL_PATH := "res://assets/protagonista/azrael_sprites_transparent.png"
+const IDLE_ROW := 0
+const RUN_ROW := 1
+const ATTACK_ROW := 2
 const DIR_SW := "sw"
 const DIR_SE := "se"
 const DIR_NW := "nw"
@@ -28,6 +33,8 @@ const DIRECTION_ROWS := {
 	DIR_NE: 3,
 }
 
+var current_health: float
+var is_dead := false
 var dash_direction := Vector2.ZERO
 var last_move_dir := Vector2.DOWN
 var last_facing := DIR_SE
@@ -48,42 +55,40 @@ var attack_requested := false
 @onready var skill_manager: Node = $SkillManager
 
 func _ready() -> void:
-	_setup_wolf_animations()
+	current_health = max_health
+	_setup_azrael_animations()
 	_disable_attack_hitbox()
+	health_changed.emit(current_health, max_health)
 
-func _setup_wolf_animations() -> void:
+func _setup_azrael_animations() -> void:
 	var frames := SpriteFrames.new()
-	var idle_tex: Texture2D = load(WOLF_IDLE_PATH)
-	var run_tex: Texture2D = load(WOLF_RUN_PATH)
-	var bite_tex: Texture2D = load(WOLF_BITE_PATH)
-
+	var tex: Texture2D = load(AZRAEL_PATH)
 	for direction in DIRECTION_ROWS.keys():
-		var row: int = int(DIRECTION_ROWS[direction])
-		_add_animation(frames, "idle_" + direction, idle_tex, row, IDLE_FRAME_COUNT, 6.0)
-		_add_animation(frames, "run_" + direction, run_tex, row, RUN_FRAME_COUNT, 10.0)
-		_add_animation(frames, "bite_" + direction, bite_tex, row, BITE_FRAME_COUNT, 20.0, false)
-
+		var dir_idx: int = DIRECTION_ROWS[direction]
+		_add_anim_sheet(frames, "idle_" + direction, tex, IDLE_ROW, dir_idx * IDLE_FRAME_COUNT, IDLE_FRAME_COUNT, 6.0)
+		_add_anim_sheet(frames, "run_" + direction, tex, RUN_ROW, dir_idx * RUN_FRAME_COUNT, RUN_FRAME_COUNT, 10.0)
+		_add_anim_sheet(frames, "bite_" + direction, tex, ATTACK_ROW, dir_idx * BITE_FRAME_COUNT, BITE_FRAME_COUNT, 20.0, false)
 	sprite.sprite_frames = frames
 	sprite.play("idle_" + last_facing)
 
-func _add_animation(
+func _add_anim_sheet(
 	frames: SpriteFrames,
-	name: String,
+	anim_name: String,
 	texture: Texture2D,
-	row: int,
+	sheet_row: int,
+	col_start: int,
 	frame_count: int,
 	fps: float,
 	loop: bool = true
 ) -> void:
-	frames.add_animation(name)
-	frames.set_animation_speed(name, fps)
-	frames.set_animation_loop(name, loop)
-
+	frames.add_animation(anim_name)
+	frames.set_animation_speed(anim_name, fps)
+	frames.set_animation_loop(anim_name, loop)
 	for i in frame_count:
 		var atlas := AtlasTexture.new()
 		atlas.atlas = texture
-		atlas.region = Rect2(i * FRAME_W, row * FRAME_H, FRAME_W, FRAME_H)
-		frames.add_frame(name, atlas)
+		atlas.region = Rect2((col_start + i) * FRAME_W, sheet_row * FRAME_H, FRAME_W, FRAME_H)
+		frames.add_frame(anim_name, atlas)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
@@ -94,8 +99,6 @@ func _unhandled_input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	var move_dir := _get_move_input()
 
-	# Skill input — must be before is_attacking/is_dashing/else block
-	# so skill_e is never suppressed by those states
 	if Input.is_action_just_pressed("skill_q"):
 		if not is_dashing and not is_attacking:
 			skill_manager.use_q(self)
@@ -117,15 +120,12 @@ func _physics_process(delta: float) -> void:
 	elif is_dashing:
 		dash_timer -= delta
 		velocity = dash_direction * dash_speed
-
 		if dash_timer <= 0:
 			is_dashing = false
 	else:
 		velocity = move_dir * speed
-
 		if move_dir != Vector2.ZERO:
 			last_move_dir = move_dir
-
 		if Input.is_action_just_pressed("dash") and cooldown_timer <= 0:
 			start_dash(last_move_dir)
 
@@ -149,7 +149,6 @@ func _update_animation(move_dir: Vector2) -> void:
 
 	if sprite.animation != target_animation or not sprite.is_playing():
 		sprite.play(target_animation)
-
 	sprite.flip_h = false
 
 func start_dash(direction: Vector2) -> void:
@@ -171,25 +170,16 @@ func _get_move_input() -> Vector2:
 func _resolve_facing(direction: Vector2) -> String:
 	if direction == Vector2.ZERO:
 		return last_facing
-
 	var x := signf(direction.x)
 	var y := signf(direction.y)
-
 	if y < 0.0:
-		if x > 0.0:
-			return DIR_NE
-		return DIR_NW
-
+		return DIR_NE if x > 0.0 else DIR_NW
 	if y > 0.0:
-		if x < 0.0:
-			return DIR_SW
-		return DIR_SE
-
+		return DIR_SW if x < 0.0 else DIR_SE
 	if x < 0.0:
 		return DIR_SW
 	if x > 0.0:
 		return DIR_NE
-
 	return last_facing
 
 func _can_start_attack() -> bool:
@@ -204,20 +194,16 @@ func _start_attack() -> void:
 		attack_direction = last_move_dir.normalized()
 	if attack_direction == Vector2.ZERO:
 		attack_direction = Vector2(1, 0)
-
 	last_facing = _resolve_facing(attack_direction)
 	hit_targets.clear()
 	_enable_attack_hitbox(attack_direction)
 
 func _update_attack(delta: float) -> void:
 	attack_timer -= delta
-
 	if attack_hit_active:
 		_apply_attack_damage()
-
 	if attack_timer <= attack_duration * 0.45 and attack_hit_active:
 		_disable_attack_hitbox()
-
 	if attack_timer <= 0.0:
 		is_attacking = false
 		_disable_attack_hitbox()
@@ -243,12 +229,23 @@ func _draw() -> void:
 	if skill_manager and skill_manager.skill_q_active_timer > 0.0:
 		draw_arc(Vector2.ZERO, 80.0, 0.0, TAU, 32, Color(0.6, 0.0, 1.0, 0.8), 2.0)
 
-func _damage_target(target: Node) -> void:
-	if hit_targets.has(target):
+func take_damage(amount: float, _direction: Vector2 = Vector2.ZERO) -> void:
+	if is_dead:
 		return
+	current_health = maxf(current_health - amount, 0.0)
+	health_changed.emit(current_health, max_health)
+	if current_health <= 0.0:
+		_die()
 
+func _die() -> void:
+	is_dead = true
+	set_physics_process(false)
+	died.emit()
+
+func _damage_target(target: Node) -> void:
+	if target == self or hit_targets.has(target):
+		return
 	hit_targets.append(target)
-
 	if target.has_method("take_damage"):
 		target.call("take_damage", attack_damage, attack_direction)
 	elif target.has_method("receive_hit"):
