@@ -15,3 +15,7 @@ Thumbs.db
 
 # Pastas externas ao projeto
 OneDrive/
+
+# Arquivos locais
+CLAUDE.md
+.claude/settings.local.json
