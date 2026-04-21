@@ -10,6 +10,7 @@ var _lifetime_timer := 0.0
 
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
+	area_entered.connect(_on_area_entered)
 	queue_redraw()
 
 func _draw() -> void:
@@ -23,6 +24,9 @@ func _physics_process(delta: float) -> void:
 
 func _on_body_entered(body: Node) -> void:
 	_hit(body)
+
+func _on_area_entered(area: Area2D) -> void:
+	_hit(area)
 
 func _hit(target: Node) -> void:
 	if target == source:
