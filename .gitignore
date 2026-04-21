@@ -12,3 +12,6 @@ export/
 # OS
 .DS_Store
 Thumbs.db
+
+# Pastas externas ao projeto
+OneDrive/
