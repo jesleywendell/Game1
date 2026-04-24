@@ -1,12 +1,12 @@
 extends Node2D
 
-@onready var btn_iniciar: MenuButton = $CanvasLayer/BtnIniciar
-@onready var btn_configuracoes: MenuButton = $CanvasLayer/BtnConfiguracoes
-@onready var btn_creditos: MenuButton = $CanvasLayer/BtnCreditos
-@onready var btn_sair: MenuButton = $CanvasLayer/BtnSair
+@onready var btn_iniciar: GameMenuButton = $CanvasLayer/BtnIniciar
+@onready var btn_configuracoes: GameMenuButton = $CanvasLayer/BtnConfiguracoes
+@onready var btn_creditos: GameMenuButton = $CanvasLayer/BtnCreditos
+@onready var btn_sair: GameMenuButton = $CanvasLayer/BtnSair
 @onready var info_panel: Panel = $CanvasLayer/InfoPanel
 @onready var info_label: Label = $CanvasLayer/InfoPanel/VBox/Label
-@onready var btn_fechar: MenuButton = $CanvasLayer/InfoPanel/VBox/BtnFechar
+@onready var btn_fechar: GameMenuButton = $CanvasLayer/InfoPanel/VBox/BtnFechar
 @onready var fade_rect: ColorRect = $CanvasLayer/FadeRect
 
 func _ready() -> void:

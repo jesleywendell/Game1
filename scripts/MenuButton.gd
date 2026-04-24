@@ -1,4 +1,4 @@
-class_name MenuButton
+class_name GameMenuButton
 extends Button
 
 signal activated
