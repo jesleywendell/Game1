@@ -9,7 +9,6 @@ const MARGIN       := 12.0
 const FILL_OFFSET_X := 19.5  # desloca o fill para a direita (ajuste fino aqui)
 
 var _tween: Tween
-
 func _ready() -> void:
 	health_bar.texture_under    = _load_resized("res://assets/life/bar_frame.png", 0)
 	health_bar.texture_progress = _load_resized("res://assets/life/bar_fill.png", FILL_OFFSET_X)
