@@ -3,8 +3,8 @@ extends CanvasLayer
 @onready var health_bar: TextureProgressBar = $HealthBar
 @onready var game_over_label: Label         = $GameOverLabel
 
-const BAR_W        := 240
-const BAR_H        := 160
+const BAR_W        := 220
+const BAR_H        := 70
 const MARGIN       := 12.0
 const FILL_OFFSET_X := 19.5  # desloca o fill para a direita (ajuste fino aqui)
 
