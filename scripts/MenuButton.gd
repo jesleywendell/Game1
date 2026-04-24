@@ -1,3 +1,4 @@
+class_name MenuButton
 extends Button
 
 signal activated

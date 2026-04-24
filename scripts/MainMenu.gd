@@ -1,19 +1,19 @@
 extends Node2D
 
-@onready var btn_iniciar: Button = $CanvasLayer/BtnIniciar
-@onready var btn_configuracoes: Button = $CanvasLayer/BtnConfiguracoes
-@onready var btn_creditos: Button = $CanvasLayer/BtnCreditos
-@onready var btn_sair: Button = $CanvasLayer/BtnSair
+@onready var btn_iniciar: MenuButton = $CanvasLayer/BtnIniciar
+@onready var btn_configuracoes: MenuButton = $CanvasLayer/BtnConfiguracoes
+@onready var btn_creditos: MenuButton = $CanvasLayer/BtnCreditos
+@onready var btn_sair: MenuButton = $CanvasLayer/BtnSair
 @onready var info_panel: Panel = $CanvasLayer/InfoPanel
 @onready var info_label: Label = $CanvasLayer/InfoPanel/VBox/Label
-@onready var btn_fechar: Button = $CanvasLayer/InfoPanel/VBox/BtnFechar
+@onready var btn_fechar: MenuButton = $CanvasLayer/InfoPanel/VBox/BtnFechar
 @onready var fade_rect: ColorRect = $CanvasLayer/FadeRect
 
 func _ready() -> void:
 	btn_iniciar.activated.connect(_start_game)
 	btn_configuracoes.activated.connect(func(): _open_info("Configuracoes\n- Em breve -"))
 	btn_creditos.activated.connect(func(): _open_info("Creditos\n- Em breve -"))
-	btn_sair.activated.connect(get_tree().quit)
+	btn_sair.activated.connect(func(): get_tree().quit())
 	btn_fechar.activated.connect(_close_info)
 	_fade_in()
 
