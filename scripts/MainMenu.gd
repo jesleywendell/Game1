@@ -1,17 +1,20 @@
 extends Node2D
 
-@onready var btn_iniciar: Button = $CanvasLayer/ButtonsContainer/BtnIniciar
-@onready var btn_opcoes: Button = $CanvasLayer/ButtonsContainer/BtnOpcoes
-@onready var btn_sair: Button = $CanvasLayer/ButtonsContainer/BtnSair
-@onready var options_panel: Panel = $CanvasLayer/OptionsPanel
-@onready var btn_fechar: Button = $CanvasLayer/OptionsPanel/VBox/BtnFechar
+@onready var btn_iniciar: Button = $CanvasLayer/BtnIniciar
+@onready var btn_configuracoes: Button = $CanvasLayer/BtnConfiguracoes
+@onready var btn_creditos: Button = $CanvasLayer/BtnCreditos
+@onready var btn_sair: Button = $CanvasLayer/BtnSair
+@onready var info_panel: Panel = $CanvasLayer/InfoPanel
+@onready var info_label: Label = $CanvasLayer/InfoPanel/VBox/Label
+@onready var btn_fechar: Button = $CanvasLayer/InfoPanel/VBox/BtnFechar
 @onready var fade_rect: ColorRect = $CanvasLayer/FadeRect
 
 func _ready() -> void:
 	btn_iniciar.activated.connect(_start_game)
-	btn_opcoes.activated.connect(_open_options)
+	btn_configuracoes.activated.connect(func(): _open_info("Configuracoes\n- Em breve -"))
+	btn_creditos.activated.connect(func(): _open_info("Creditos\n- Em breve -"))
 	btn_sair.activated.connect(get_tree().quit)
-	btn_fechar.activated.connect(_close_options)
+	btn_fechar.activated.connect(_close_info)
 	_fade_in()
 
 func _fade_in() -> void:
@@ -24,8 +27,9 @@ func _start_game() -> void:
 	tween.tween_property(fade_rect, "modulate:a", 1.0, 0.4)
 	tween.tween_callback(func(): get_tree().change_scene_to_file("res://scenes/World.tscn"))
 
-func _open_options() -> void:
-	options_panel.show()
+func _open_info(text: String) -> void:
+	info_label.text = text
+	info_panel.show()
 
-func _close_options() -> void:
-	options_panel.hide()
+func _close_info() -> void:
+	info_panel.hide()
