@@ -1,7 +1,7 @@
 extends Node
 
-const DAMAGE_Q := 2.0
-const DAMAGE_E := 1.5
+const DAMAGE_Q := 25.0
+const DAMAGE_E := 20.0
 const COOLDOWN_Q := 3.0
 const COOLDOWN_E := 2.0
 const ACTIVE_Q_DURATION := 0.3

@@ -7,7 +7,7 @@ signal died
 @export var dash_speed: float = 700.0
 @export var dash_time: float = 0.15
 @export var dash_cooldown: float = 1.0
-@export var attack_damage: float = 1.0
+@export var attack_damage: float = 15.0
 @export var attack_duration: float = 0.35
 @export var attack_cooldown: float = 0.2
 @export var attack_hitbox_distance: float = 28.0
@@ -26,6 +26,8 @@ const DIR_SW := "sw"
 const DIR_SE := "se"
 const DIR_NW := "nw"
 const DIR_NE := "ne"
+const INVINCIBILITY_DURATION := 0.6
+const KNOCKBACK_FORCE := 120.0
 const DIRECTION_ROWS := {
 	DIR_SW: 0,
 	DIR_SE: 1,
@@ -48,17 +50,20 @@ var attack_cooldown_timer := 0.0
 var attack_hit_active := false
 var hit_targets: Array[Node] = []
 var attack_requested := false
+var _invincibility_timer := 0.0
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var attack_area: Area2D = $AttackArea2D
 @onready var attack_shape: CollisionShape2D = $AttackArea2D/CollisionShape2D
 @onready var skill_manager: Node = $SkillManager
+@onready var camera: Camera2D = $Camera2D
 
 func _ready() -> void:
 	current_health = max_health
 	_setup_azrael_animations()
 	_disable_attack_hitbox()
 	health_changed.emit(current_health, max_health)
+	camera.zoom = Vector2(2.0, 2.0)
 
 func _setup_azrael_animations() -> void:
 	var frames := SpriteFrames.new()
@@ -97,6 +102,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			attack_requested = true
 
 func _physics_process(delta: float) -> void:
+	if _invincibility_timer > 0.0:
+		_invincibility_timer -= delta
+		sprite.modulate.a = 0.4 if (int(_invincibility_timer * 10) % 2 == 1) else 1.0
+		if _invincibility_timer <= 0.0:
+			sprite.modulate.a = 1.0
 	var move_dir := _get_move_input()
 
 	if Input.is_action_just_pressed("skill_q"):
@@ -229,18 +239,30 @@ func _draw() -> void:
 	if skill_manager and skill_manager.skill_q_active_timer > 0.0:
 		draw_arc(Vector2.ZERO, 80.0, 0.0, TAU, 32, Color(0.6, 0.0, 1.0, 0.8), 2.0)
 
-func take_damage(amount: float, _direction: Vector2 = Vector2.ZERO) -> void:
-	if is_dead:
+func take_damage(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
+	if is_dead or _invincibility_timer > 0.0:
 		return
 	current_health = maxf(current_health - amount, 0.0)
+	_invincibility_timer = INVINCIBILITY_DURATION
 	health_changed.emit(current_health, max_health)
+	_flash_hit()
+	JuiceManager.add_trauma(0.45)
+	JuiceManager.spawn_damage_number(amount, global_position, get_parent(), true)
+	if direction != Vector2.ZERO:
+		velocity += direction.normalized() * KNOCKBACK_FORCE
 	if current_health <= 0.0:
 		_die()
+
+func _flash_hit() -> void:
+	var tween := create_tween()
+	tween.tween_property(sprite, "modulate", Color(2.0, 0.3, 0.3, 1.0), 0.05)
+	tween.tween_property(sprite, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.15)
 
 func _die() -> void:
 	is_dead = true
 	set_physics_process(false)
 	died.emit()
+	sprite.modulate.a = 1.0
 
 func _damage_target(target: Node) -> void:
 	if target == self or hit_targets.has(target):

@@ -1,8 +1,11 @@
 extends Area2D
 
-const DAMAGE          := 10.0
-const DAMAGE_INTERVAL := 1.0
-const MAX_HEALTH      := 60.0
+var DAMAGE          := 10.0
+var DAMAGE_INTERVAL := 1.0
+var MAX_HEALTH      := 60.0
+const MOVE_SPEED      := 60.0
+const DETECT_RANGE    := 180.0
+const STOP_RANGE      := 20.0
 const FRAME_W         := 41
 const FRAME_H         := 25
 const IDLE_FRAMES     := 7
@@ -38,20 +41,41 @@ func _setup_animation() -> void:
 	sprite.play("idle")
 
 func _physics_process(delta: float) -> void:
-	if is_dead or _player == null:
+	var player_node: Node2D = get_tree().get_first_node_in_group("player")
+	if player_node == null or is_dead:
+		return
+	var dist := global_position.distance_to(player_node.global_position)
+	if dist < DETECT_RANGE and dist > STOP_RANGE:
+		var dir := (player_node.global_position - global_position).normalized()
+		position += dir * MOVE_SPEED * delta
+	if _player == null:
 		return
 	_damage_timer -= delta
 	if _damage_timer <= 0.0:
 		_damage_timer = DAMAGE_INTERVAL
 		_player.take_damage(DAMAGE, Vector2.ZERO)
+	z_index = int(global_position.y / 8.0)
 
-func take_damage(amount: float, _direction: Vector2 = Vector2.ZERO) -> void:
+func take_damage(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
 	if is_dead:
 		return
 	current_health = maxf(current_health - amount, 0.0)
 	queue_redraw()
+	_flash_hit()
+	JuiceManager.spawn_blood(global_position, get_parent())
+	JuiceManager.spawn_damage_number(amount, global_position, get_parent())
+	if amount >= 20.0:
+		JuiceManager.apply_hitstop(0.06)
+		JuiceManager.add_trauma(0.25)
+	if direction != Vector2.ZERO:
+		position += direction * 18.0
 	if current_health <= 0.0:
 		_die()
+
+func _flash_hit() -> void:
+	var tween := create_tween()
+	tween.tween_property(self, "modulate", Color(2.0, 0.4, 0.4, 1.0), 0.05)
+	tween.tween_property(self, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.12)
 
 func receive_hit(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
 	take_damage(amount, direction)
@@ -61,6 +85,9 @@ func _die() -> void:
 	_player = null
 	set_physics_process(false)
 	$CollisionShape2D.set_deferred("disabled", true)
+	JuiceManager.spawn_blood(global_position, get_parent())
+	JuiceManager.apply_hitstop(0.08)
+	JuiceManager.add_trauma(0.3)
 	var tween := create_tween()
 	tween.tween_property(self, "modulate:a", 0.0, 0.4)
 	tween.tween_callback(queue_free)

@@ -15,6 +15,7 @@ const TILES_DARK_SOIL := [12, 13, 14]
 const TILES_MOSSY     := [20, 21, 22, 23]
 const TILES_GREEN     := [34, 35, 36]
 const TILES_BORDER    := [60, 61]
+const TILES_ROCKY     := [60, 61]
 
 var _occupied := {}
 
@@ -56,7 +57,7 @@ func _pick_forest_tile(noise_val: float, col: int, row: int) -> int:
 	elif noise_val < 0.45:
 		return TILES_GREEN[_stable_pick(seed_val, TILES_GREEN.size())]
 	else:
-		return TILES_MOSSY[_stable_pick(seed_val, TILES_MOSSY.size())]
+		return TILES_ROCKY[_stable_pick(seed_val, TILES_ROCKY.size())]
 
 func _stable_pick(seed_val: int, count: int) -> int:
 	return abs(seed_val) % count

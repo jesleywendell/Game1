@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://cb4hi7ak01tqb"]
 
 [ext_resource type="Script" path="res://scripts/World.gd" id="1"]
-[ext_resource type="Script" uid="uid://mw7uxuxypsot" path="res://scripts/MapGenerator.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/MapGenerator.gd" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/Boar.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/HUD.tscn" id="5"]

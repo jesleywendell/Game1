@@ -23,9 +23,7 @@ func _fade_in() -> void:
 	tween.tween_property(fade_rect, "modulate:a", 0.0, 0.5)
 
 func _start_game() -> void:
-	var tween := create_tween()
-	tween.tween_property(fade_rect, "modulate:a", 1.0, 0.4)
-	tween.tween_callback(func(): get_tree().change_scene_to_file("res://scenes/World.tscn"))
+	TransitionScreen.fade_to("res://scenes/World.tscn")
 
 func _open_info(text: String) -> void:
 	info_label.text = text
