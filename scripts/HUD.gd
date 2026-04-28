@@ -3,10 +3,14 @@ extends CanvasLayer
 @onready var health_bar: TextureProgressBar = $HealthBar
 @onready var game_over_label: Label         = $GameOverLabel
 
-const FILL_OFFSET_RATIO := 0.089
-const XP_FRAME := "res://assets/xp/ChatGPT Image 27 de abr. de 2026, 17_21_53.png"
-const XP_FILL  := "res://assets/xp/ChatGPT Image 27 de abr. de 2026, 17_21_40.png"
-const XP_EMPTY := "res://assets/xp/ChatGPT Image 27 de abr. de 2026, 17_21_47.png"
+# Content bounding boxes (measured pixel-exact from 1536×1024 sources)
+const _HP_CROP     := Rect2i(138, 338, 1310, 293)  # bar_frame full content
+const _HP_FILL_SRC := Rect2i(333, 445,  867,  82)  # bar_fill content only
+const _XP_CROP     := Rect2i( 94, 343, 1375, 243)  # xp_background full content
+const _XP_FILL_SRC := Rect2i(290, 445,  970, 107)  # xp_bar_fill trimmed to slot
+
+const XP_FRAME := "res://assets/xp/xp_background.png"
+const XP_FILL  := "res://assets/xp/xp_bar_fill.png"
 
 var _tween: Tween
 var _wave_label: Label
@@ -15,43 +19,71 @@ var _xp_bar: TextureProgressBar
 
 func _ready() -> void:
 	var vp  := get_viewport().get_visible_rect().size
-	var mg  := vp.x * 0.01          # ~19px @ 1080p
-	var bw  := int(vp.x * 0.22)     # 422px — largura compartilhada
-	var bh  := int(vp.y * 0.07)     # 76px  — barra de vida
-	var xh  := int(vp.y * 0.028)    # 30px  — barra de XP (accent)
-	var gap := int(vp.y * 0.004)    # 4px   — gap fixo entre barras
+	var mg  := int(vp.x * 0.01)
+	var bw  := int(vp.x * 0.22)
+	var bh  := int(bw / 4.473)   # natural ratio of bar_frame (1310÷293)
+	var xh  := int(bw / 5.658)   # natural ratio of xp_background (1375÷243)
 
-	# Barra de vida
-	var off := int(bw * FILL_OFFSET_RATIO)
-	health_bar.texture_under    = _load_img("res://assets/life/bar_frame.png", 0, bw, bh)
-	health_bar.texture_progress = _load_img("res://assets/life/bar_fill.png", off, bw, bh)
+	# ── Health bar ──────────────────────────────────────────────────────────
+	# Background: full frame (heart ornament always visible)
+	var hp_bg := TextureRect.new()
+	hp_bg.texture      = _load_cropped("res://assets/life/bar_frame.png", _HP_CROP, bw, bh)
+	hp_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hp_bg.set_position(Vector2(mg, mg))
+	hp_bg.set_size(Vector2(bw, bh))
+	add_child(hp_bg)
+	move_child(hp_bg, 0)  # draw below health_bar fill
+
+	# Fill: positioned exactly over the dark slot (after heart, before arrow tip)
+	var hfx := int(bw * 0.149)                    # ~63px — right edge of heart
+	var hfy := int(bh * 0.365)                    # ~34px — vertical slot centre
+	var hfw := bw - hfx - int(bw * 0.068)         # ~331px — leaves arrow-tip area
+	var hfh := int(bh * 0.280)                    # ~26px — slot height
+	health_bar.texture_under    = null
+	health_bar.texture_progress = _load_cropped("res://assets/life/bar_fill.png", _HP_FILL_SRC, hfw, hfh)
 	health_bar.custom_minimum_size = Vector2.ZERO
-	health_bar.set_position(Vector2(mg, mg))
-	health_bar.set_size(Vector2(bw, bh))
+	health_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	health_bar.set_position(Vector2(mg + hfx, mg + hfy))
+	health_bar.set_size(Vector2(hfw, hfh))
 
-	# Barra de XP — imediatamente abaixo com gap fixo
-	var xp_y := mg + bh + gap
+	# ── XP bar ───────────────────────────────────────────────────────────────
+	var xp_y := mg + bh + 3
+
+	# Background: full xp_background frame (diamonds always visible)
+	var xp_bg := TextureRect.new()
+	xp_bg.texture      = _load_cropped(XP_FRAME, _XP_CROP, bw, xh)
+	xp_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	xp_bg.set_position(Vector2(mg, xp_y))
+	xp_bg.set_size(Vector2(bw, xh))
+	add_child(xp_bg)
+
+	# Fill: positioned between the diamond ornaments (x=14.3%–85.5% of bw)
+	var xfx := int(bw * 0.143)                    # ~60px — inner edge of left diamond
+	var xfy := int(xh * 0.420)                    # ~31px — vertical slot centre
+	var xfw := bw - xfx - int(bw * 0.145)         # ~298px — inner edge of right diamond
+	var xfh := int(xh * 0.440)                    # ~32px — slot height
 	_xp_bar = TextureProgressBar.new()
-	_xp_bar.min_value = 0.0
-	_xp_bar.max_value = 100.0
-	_xp_bar.value     = 0.0
-	_xp_bar.fill_mode = 0
+	_xp_bar.min_value    = 0.0
+	_xp_bar.max_value    = 100.0
+	_xp_bar.value        = 0.0
+	_xp_bar.fill_mode    = 0
 	_xp_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_xp_bar.set_position(Vector2(mg, xp_y))
-	_xp_bar.set_size(Vector2(bw, xh))
-	_xp_bar.texture_under    = _load_img(XP_EMPTY, 0, bw, xh)
-	_xp_bar.texture_progress = _load_img(XP_FILL,  0, bw, xh)
-	_xp_bar.texture_over     = _load_img(XP_FRAME, 0, bw, xh)
+	_xp_bar.texture_progress = _load_cropped(XP_FILL, _XP_FILL_SRC, xfw, xfh)
+	_xp_bar.set_position(Vector2(mg + xfx, xp_y + xfy))
+	_xp_bar.set_size(Vector2(xfw, xfh))
 	add_child(_xp_bar)
 
-	# Lv.N — alinhado verticalmente ao centro da barra de XP
+	# Level label — right of XP bar, vertically centred
+	var font_sz := int(vp.y * 0.022)
 	_level_label = Label.new()
-	_level_label.add_theme_font_size_override("font_size", int(vp.y * 0.016))
+	_level_label.add_theme_font_size_override("font_size", font_sz)
+	_level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_level_label.modulate = Color(0.78, 0.55, 1.0)
-	_level_label.set_position(Vector2(mg + bw + 6.0, xp_y + (xh - int(vp.y * 0.016)) * 0.5))
+	_level_label.set_position(Vector2(mg + bw + 8, xp_y))
+	_level_label.set_size(Vector2(120, xh))
 	add_child(_level_label)
 
-	# Wave label — 8px abaixo do XP bar
+	# Wave label — below XP bar
 	_wave_label = Label.new()
 	_wave_label.text = "Wave 1"
 	_wave_label.add_theme_font_size_override("font_size", int(vp.y * 0.018))
@@ -63,14 +95,11 @@ func _ready() -> void:
 	on_xp_changed(ProgressionManager.data.current_xp,
 		ProgressionManager.xp_required(ProgressionManager.data.level))
 
-func _load_img(path: String, x_off: int, w: int, h: int) -> ImageTexture:
-	var img := Image.load_from_file(path)
-	img.resize(w, h, Image.INTERPOLATE_LANCZOS)
-	if x_off <= 0:
-		return ImageTexture.create_from_image(img)
-	var canvas := Image.create(w, h, true, Image.FORMAT_RGBA8)
-	canvas.blit_rect(img, Rect2i(0, 0, w - x_off, h), Vector2i(x_off, 0))
-	return ImageTexture.create_from_image(canvas)
+func _load_cropped(path: String, crop: Rect2i, out_w: int, out_h: int) -> ImageTexture:
+	var img    := Image.load_from_file(path)
+	var region := img.get_region(crop)
+	region.resize(out_w, out_h, Image.INTERPOLATE_LANCZOS)
+	return ImageTexture.create_from_image(region)
 
 func on_health_changed(current: float, maximum: float) -> void:
 	var target := current / maximum * 100.0
