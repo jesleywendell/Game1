@@ -1,5 +1,8 @@
 extends Node2D
 
+const UPGRADE_PANEL := preload("res://scenes/UpgradePanel.tscn")
+const PAUSE_MENU    := preload("res://scenes/PauseMenu.tscn")
+
 @onready var player: CharacterBody2D = $Player
 @onready var hud: CanvasLayer = $HUD
 
@@ -10,6 +13,8 @@ func _ready() -> void:
 	player.add_to_group("player")
 	player.health_changed.connect(hud.on_health_changed)
 	player.died.connect(hud.on_player_died)
+	add_child(UPGRADE_PANEL.instantiate())
+	add_child(PAUSE_MENU.instantiate())
 	_setup_atmosphere()
 
 	_wave_manager = load("res://scripts/WaveManager.gd").new()

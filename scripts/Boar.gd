@@ -16,6 +16,7 @@ const BAR_Y := 42.0   # abaixo do sprite
 
 var current_health  := MAX_HEALTH
 var is_dead         := false
+var xp_reward       := 25.0
 var _damage_timer   := 0.0
 var _player: Node   = null
 
@@ -85,6 +86,7 @@ func _die() -> void:
 	_player = null
 	set_physics_process(false)
 	$CollisionShape2D.set_deferred("disabled", true)
+	ProgressionManager.add_xp(xp_reward)
 	JuiceManager.spawn_blood(global_position, get_parent())
 	JuiceManager.apply_hitstop(0.08)
 	JuiceManager.add_trauma(0.3)

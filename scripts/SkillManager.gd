@@ -61,6 +61,7 @@ func use_e(player: CharacterBody2D, mouse_pos: Vector2) -> void:
 	var dir := (mouse_pos - player.global_position)
 	projectile.direction = dir.normalized() if dir.length_squared() > 0.0 else Vector2.RIGHT
 	projectile.source = player
+	projectile.damage = DAMAGE_E + ProgressionManager.get_skill_damage_bonus()
 	get_tree().current_scene.add_child(projectile)
 	cooldown_e_timer = COOLDOWN_E
 
@@ -79,7 +80,8 @@ func _apply_q_hit(target: Node) -> void:
 	var dir := Vector2.ZERO
 	if _player_ref:
 		dir = (target.global_position - _player_ref.global_position).normalized()
+	var dmg := DAMAGE_Q + ProgressionManager.get_skill_damage_bonus()
 	if target.has_method("take_damage"):
-		target.take_damage(DAMAGE_Q, dir)
+		target.take_damage(dmg, dir)
 	elif target.has_method("receive_hit"):
-		target.receive_hit(DAMAGE_Q, dir)
+		target.receive_hit(dmg, dir)

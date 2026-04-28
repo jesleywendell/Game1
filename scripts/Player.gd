@@ -37,6 +37,9 @@ const DIRECTION_ROWS := {
 
 var current_health: float
 var is_dead := false
+var _base_speed: float
+var _base_attack_damage: float
+var _base_max_health: float
 var dash_direction := Vector2.ZERO
 var last_move_dir := Vector2.DOWN
 var last_facing := DIR_SE
@@ -59,11 +62,28 @@ var _invincibility_timer := 0.0
 @onready var camera: Camera2D = $Camera2D
 
 func _ready() -> void:
-	current_health = max_health
+	_base_speed = speed
+	_base_attack_damage = attack_damage
+	_base_max_health = max_health
+	_apply_stats()
 	_setup_azrael_animations()
 	_disable_attack_hitbox()
 	health_changed.emit(current_health, max_health)
 	camera.zoom = Vector2(2.0, 2.0)
+	ProgressionManager.upgrade_applied.connect(_apply_stats)
+
+func _apply_stats() -> void:
+	speed = ProgressionManager.get_speed(_base_speed)
+	attack_damage = ProgressionManager.get_attack_damage(_base_attack_damage)
+	var new_max := ProgressionManager.get_max_health(_base_max_health)
+	if current_health == 0.0:
+		current_health = new_max
+	elif new_max > max_health:
+		current_health = minf(current_health + (new_max - max_health), new_max)
+	else:
+		current_health = minf(current_health, new_max)
+	max_health = new_max
+	health_changed.emit(current_health, max_health)
 
 func _setup_azrael_animations() -> void:
 	var frames := SpriteFrames.new()
