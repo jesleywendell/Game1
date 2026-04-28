@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dj60yh4626g84"
-path="res://.godot/imported/ChatGPT Image 27 de abr. de 2026, 17_21_40.png-eaf4e723662dcf26c35597c42eb49e4e.ctex"
+uid="uid://gb186t6icoiy"
+path="res://.godot/imported/xp_bar.png-c5afe11a1a7f5f1dfc4d7f92c90c629e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/xp/ChatGPT Image 27 de abr. de 2026, 17_21_40.png"
-dest_files=["res://.godot/imported/ChatGPT Image 27 de abr. de 2026, 17_21_40.png-eaf4e723662dcf26c35597c42eb49e4e.ctex"]
+source_file="res://assets/xp/xp_bar.png"
+dest_files=["res://.godot/imported/xp_bar.png-c5afe11a1a7f5f1dfc4d7f92c90c629e.ctex"]
 
 [params]
 
