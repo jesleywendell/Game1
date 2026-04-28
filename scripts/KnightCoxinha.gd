@@ -7,13 +7,13 @@ const MOVE_SPEED      := 55.0
 const DETECT_RANGE    := 230.0
 const STOP_RANGE      := 24.0
 
-const FRAME_W := 48
-const FRAME_H := 72
-const COLS    := 9
+const FRAME_W := 68
+const FRAME_H := 68
+const COLS    := 6
 const ROW_IDLE   := 0
-const ROW_WALK   := 2
+const ROW_WALK   := 1
 const ROW_ATTACK := 4
-const ROW_SKILL  := 5
+const ROW_SKILL  := 7
 
 const SKILL_COOLDOWN  := 6.0
 const SKILL_RANGE     := 210.0
@@ -48,20 +48,32 @@ func _ready() -> void:
 
 func _setup_animation() -> void:
 	var frames := SpriteFrames.new()
-	var tex: Texture2D = load("res://assets/enemies/knight_coxinha/sprites_knight_coxinha-removebg-preview.png")
-	var rows := {"idle": ROW_IDLE, "walk": ROW_WALK, "attack": ROW_ATTACK, "skill": ROW_SKILL}
-	for anim in rows:
+	var tex: Texture2D = load("res://assets/enemies/knight_coxinha/knight_coxinha.png")
+
+	var single := {"idle": ROW_IDLE, "walk": ROW_WALK, "attack": ROW_ATTACK}
+	for anim in single:
 		frames.add_animation(anim)
 		frames.set_animation_loop(anim, true)
 		for i in COLS:
 			var atlas := AtlasTexture.new()
 			atlas.atlas = tex
-			atlas.region = Rect2(i * FRAME_W, rows[anim] * FRAME_H, FRAME_W, FRAME_H)
+			atlas.region = Rect2(i * FRAME_W, single[anim] * FRAME_H, FRAME_W, FRAME_H)
 			frames.add_frame(anim, atlas)
-	frames.set_animation_speed("idle", 8.0)
-	frames.set_animation_speed("walk", 10.0)
+
+	# Skill uses rows 7 + 8: windup buildup → golden-swirl release (12 frames total)
+	frames.add_animation("skill")
+	frames.set_animation_loop("skill", false)
+	for skill_row in [ROW_SKILL, ROW_SKILL + 1]:
+		for i in COLS:
+			var atlas := AtlasTexture.new()
+			atlas.atlas = tex
+			atlas.region = Rect2(i * FRAME_W, skill_row * FRAME_H, FRAME_W, FRAME_H)
+			frames.add_frame("skill", atlas)
+
+	frames.set_animation_speed("idle",   8.0)
+	frames.set_animation_speed("walk",  10.0)
 	frames.set_animation_speed("attack", 14.0)
-	frames.set_animation_speed("skill", 12.0)
+	frames.set_animation_speed("skill",  12.0)
 	sprite.sprite_frames = frames
 	sprite.play("idle")
 
