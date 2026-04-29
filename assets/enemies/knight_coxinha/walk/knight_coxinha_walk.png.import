@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bqb24ss6i5is0"
-path="res://.godot/imported/knight_coxinha.png-2b7a4d58be6fc24c85fd2072d75c4abc.ctex"
+uid="uid://dlxhj4gac004c"
+path="res://.godot/imported/knight_coxinha_walk.png-8f9d19224de3ca761b3ee9f2cb32deb6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/enemies/knight_coxinha/knight_coxinha.png"
-dest_files=["res://.godot/imported/knight_coxinha.png-2b7a4d58be6fc24c85fd2072d75c4abc.ctex"]
+source_file="res://assets/enemies/knight_coxinha/walk/knight_coxinha_walk.png"
+dest_files=["res://.godot/imported/knight_coxinha_walk.png-8f9d19224de3ca761b3ee9f2cb32deb6.ctex"]
 
 [params]
 

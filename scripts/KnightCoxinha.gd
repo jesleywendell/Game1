@@ -1,19 +1,15 @@
 extends Area2D
 
-var DAMAGE          := 20.0
-var DAMAGE_INTERVAL := 1.0
-var MAX_HEALTH      := 150.0
+# Walk spritesheet: 1086x1448 → 6 colunas × 8 linhas, cada frame 181×181
+const FRAME_W    := 181
+const FRAME_H    := 181
+const WALK_COLS  := 6
+const WALK_ROWS  := 8
+const WALK_FPS   := 8.0
+
 const MOVE_SPEED      := 55.0
 const DETECT_RANGE    := 230.0
 const STOP_RANGE      := 24.0
-
-const FRAME_W := 68
-const FRAME_H := 68
-const COLS    := 6
-const ROW_IDLE   := 0
-const ROW_WALK   := 1
-const ROW_ATTACK := 4
-const ROW_SKILL  := 7
 
 const SKILL_COOLDOWN  := 6.0
 const SKILL_RANGE     := 210.0
@@ -24,22 +20,37 @@ const CHARGE_HIT_DIST := 64.0
 
 const BAR_W := 70.0
 const BAR_H := 6.0
-const BAR_Y := 52.0
+const BAR_Y := -115.0
+
+var DAMAGE          := 20.0
+var DAMAGE_INTERVAL := 1.0
+var MAX_HEALTH      := 150.0
 
 var current_health := MAX_HEALTH
 var is_dead        := false
 var xp_reward      := 65.0
-
 var _damage_timer  := 0.0
 var _skill_timer   := SKILL_COOLDOWN * 0.5
 var _player: Node  = null
-
-var _state        := "idle"
-var _charge_dir   := Vector2.ZERO
-var _charge_timer := 0.0
-var _skill_active := false
+var _state         := "idle"
+var _charge_dir    := Vector2.ZERO
+var _charge_timer  := 0.0
+var _last_dir      := Vector2.RIGHT
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
+
+# Ordem das linhas na spritesheet (topo → baixo).
+# Se as direções aparecerem erradas no jogo, reordene estes valores.
+const ROW_ORDER := [
+	"walk_SE", "walk_S", "walk_SW", "walk_W",
+	"walk_NW", "walk_N", "walk_NE", "walk_E",
+]
+
+# Ângulo da velocidade (0° = direita, sentido horário) → animação, 8 setores de 45°
+const SECTOR_ANIMS := [
+	"walk_E", "walk_SE", "walk_S", "walk_SW",
+	"walk_W", "walk_NW", "walk_N", "walk_NE",
+]
 
 func _ready() -> void:
 	_setup_animation()
@@ -48,34 +59,28 @@ func _ready() -> void:
 
 func _setup_animation() -> void:
 	var frames := SpriteFrames.new()
-	var tex: Texture2D = load("res://assets/enemies/knight_coxinha/knight_coxinha.png")
-
-	var single := {"idle": ROW_IDLE, "walk": ROW_WALK, "attack": ROW_ATTACK}
-	for anim in single:
+	var tex: Texture2D = load("res://assets/enemies/knight_coxinha/walk/knight_coxinha_walk.png")
+	for row_idx in WALK_ROWS:
+		var anim: String = ROW_ORDER[row_idx]
 		frames.add_animation(anim)
+		frames.set_animation_speed(anim, WALK_FPS)
 		frames.set_animation_loop(anim, true)
-		for i in COLS:
+		for col in WALK_COLS:
 			var atlas := AtlasTexture.new()
 			atlas.atlas = tex
-			atlas.region = Rect2(i * FRAME_W, single[anim] * FRAME_H, FRAME_W, FRAME_H)
+			atlas.region = Rect2(col * FRAME_W, row_idx * FRAME_H, FRAME_W, FRAME_H)
 			frames.add_frame(anim, atlas)
-
-	# Skill uses rows 7 + 8: windup buildup → golden-swirl release (12 frames total)
-	frames.add_animation("skill")
-	frames.set_animation_loop("skill", false)
-	for skill_row in [ROW_SKILL, ROW_SKILL + 1]:
-		for i in COLS:
-			var atlas := AtlasTexture.new()
-			atlas.atlas = tex
-			atlas.region = Rect2(i * FRAME_W, skill_row * FRAME_H, FRAME_W, FRAME_H)
-			frames.add_frame("skill", atlas)
-
-	frames.set_animation_speed("idle",   8.0)
-	frames.set_animation_speed("walk",  10.0)
-	frames.set_animation_speed("attack", 14.0)
-	frames.set_animation_speed("skill",  12.0)
 	sprite.sprite_frames = frames
-	sprite.play("idle")
+	# Ancora nos pes (base do frame) em vez de centralizar no meio.
+	# Evita o efeito de "sprite se movendo dentro de si" causado pela
+	# variacao de posicao do personagem entre frames do ciclo de caminhada.
+	sprite.centered = false
+	sprite.offset = Vector2(-FRAME_W / 2.0, -FRAME_H)
+	sprite.play("walk_SE")
+
+func _anim_for_dir(dir: Vector2) -> String:
+	var deg := fmod(rad_to_deg(dir.angle()) + 360.0, 360.0)
+	return SECTOR_ANIMS[int((deg + 22.5) / 45.0) % 8]
 
 func _physics_process(delta: float) -> void:
 	if is_dead:
@@ -88,6 +93,7 @@ func _physics_process(delta: float) -> void:
 	if _state == "skill_charge":
 		_charge_timer -= delta
 		position += _charge_dir * CHARGE_SPEED * delta
+		sprite.play(_anim_for_dir(_charge_dir))
 		_check_charge_hit(player_node)
 		if _charge_timer <= 0.0:
 			_end_skill()
@@ -107,11 +113,16 @@ func _physics_process(delta: float) -> void:
 
 	if dist < DETECT_RANGE and dist > STOP_RANGE:
 		var dir := (player_node.global_position - global_position).normalized()
+		_last_dir = dir
 		position += dir * MOVE_SPEED * delta
-		sprite.flip_h = dir.x < 0
-		_set_state("walk")
+		sprite.play(_anim_for_dir(dir))
+		_state = "walk"
 	else:
-		_set_state("idle")
+		if _state != "idle":
+			_state = "idle"
+			sprite.stop()
+			sprite.animation = _anim_for_dir(_last_dir)
+			sprite.frame = 0
 
 	if _player != null:
 		_damage_timer -= delta
@@ -121,23 +132,15 @@ func _physics_process(delta: float) -> void:
 
 	z_index = int(global_position.y / 8.0)
 
-func _set_state(s: String) -> void:
-	if _state == s:
-		return
-	_state = s
-	match s:
-		"idle":   sprite.play("idle")
-		"walk":   sprite.play("walk")
-		"attack": sprite.play("attack")
-		"skill_windup", "skill_charge": sprite.play("skill")
-
 func _start_skill(player_node: Node2D) -> void:
 	_skill_timer = SKILL_COOLDOWN
 	_charge_dir = (player_node.global_position - global_position).normalized()
-	sprite.flip_h = _charge_dir.x < 0
-	_set_state("skill_windup")
-	var timer := get_tree().create_timer(0.55)
-	await timer.timeout
+	_last_dir = _charge_dir
+	_state = "skill_windup"
+	sprite.stop()
+	sprite.animation = _anim_for_dir(_charge_dir)
+	sprite.frame = 0
+	await get_tree().create_timer(0.55).timeout
 	if is_dead:
 		return
 	_state = "skill_charge"
@@ -151,7 +154,7 @@ func _check_charge_hit(player_node: Node2D) -> void:
 		_end_skill()
 
 func _end_skill() -> void:
-	_set_state("idle")
+	_state = "idle"
 	JuiceManager.add_trauma(0.18)
 
 func take_damage(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
@@ -203,10 +206,7 @@ func _on_body_entered(body: Node) -> void:
 	if body.has_method("take_damage"):
 		_player = body
 		_damage_timer = 0.0
-		_set_state("attack")
 
 func _on_body_exited(body: Node) -> void:
 	if body == _player:
 		_player = null
-		if _state == "attack":
-			_set_state("idle")
