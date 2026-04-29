@@ -21,3 +21,8 @@ OneDrive/
 Captura de Tela*
 first-scenario
 thewitcher.png
+
+# Claude Code / agents (skills, memória, configuração local)
+.claude/
+.agents/
+skills-lock.json
