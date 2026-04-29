@@ -13,27 +13,15 @@ signal died
 @export var attack_hitbox_distance: float = 28.0
 @export var max_health: float = 100.0
 
-const FRAME_W := 64
-const FRAME_H := 70
-const IDLE_FRAME_COUNT := 4
-const RUN_FRAME_COUNT := 4
-const BITE_FRAME_COUNT := 4
-const AZRAEL_PATH := "res://assets/protagonista/azrael_sprites_transparent.png"
-const IDLE_ROW := 0
-const RUN_ROW := 1
-const ATTACK_ROW := 2
-const DIR_SW := "sw"
-const DIR_SE := "se"
-const DIR_NW := "nw"
-const DIR_NE := "ne"
+const FRAME_W := 120
+const FRAME_H := 153
+const WALK_COLS := 4
+const WALK_FPS  := 8.0
+const AZRAEL_PATH := "res://assets/protagonista/walk/azrael_walk.png"
+# Ordem das linhas na sheet: N, NE, E, SE, S, SW, W, NW
+const WALK_ROW_ORDER: Array[String] = ["N","NE","E","SE","S","SW","W","NW"]
 const INVINCIBILITY_DURATION := 0.6
 const KNOCKBACK_FORCE := 120.0
-const DIRECTION_ROWS := {
-	DIR_SW: 0,
-	DIR_SE: 1,
-	DIR_NW: 2,
-	DIR_NE: 3,
-}
 
 var current_health: float
 var is_dead := false
@@ -42,7 +30,7 @@ var _base_attack_damage: float
 var _base_max_health: float
 var dash_direction := Vector2.ZERO
 var last_move_dir := Vector2.DOWN
-var last_facing := DIR_SE
+var last_facing := "SE"
 var is_dashing := false
 var is_attacking := false
 var attack_direction := Vector2.ZERO
@@ -88,32 +76,21 @@ func _apply_stats() -> void:
 func _setup_azrael_animations() -> void:
 	var frames := SpriteFrames.new()
 	var tex: Texture2D = load(AZRAEL_PATH)
-	for direction in DIRECTION_ROWS.keys():
-		var dir_idx: int = DIRECTION_ROWS[direction]
-		_add_anim_sheet(frames, "idle_" + direction, tex, IDLE_ROW, dir_idx * IDLE_FRAME_COUNT, IDLE_FRAME_COUNT, 6.0)
-		_add_anim_sheet(frames, "run_" + direction, tex, RUN_ROW, dir_idx * RUN_FRAME_COUNT, RUN_FRAME_COUNT, 10.0)
-		_add_anim_sheet(frames, "bite_" + direction, tex, ATTACK_ROW, dir_idx * BITE_FRAME_COUNT, BITE_FRAME_COUNT, 20.0, false)
+	for row_idx in WALK_ROW_ORDER.size():
+		var anim := "walk_" + WALK_ROW_ORDER[row_idx]
+		frames.add_animation(anim)
+		frames.set_animation_speed(anim, WALK_FPS)
+		frames.set_animation_loop(anim, true)
+		for col in WALK_COLS:
+			var atlas := AtlasTexture.new()
+			atlas.atlas = tex
+			atlas.region = Rect2(col * FRAME_W, row_idx * FRAME_H, FRAME_W, FRAME_H)
+			frames.add_frame(anim, atlas)
 	sprite.sprite_frames = frames
-	sprite.play("idle_" + last_facing)
-
-func _add_anim_sheet(
-	frames: SpriteFrames,
-	anim_name: String,
-	texture: Texture2D,
-	sheet_row: int,
-	col_start: int,
-	frame_count: int,
-	fps: float,
-	loop: bool = true
-) -> void:
-	frames.add_animation(anim_name)
-	frames.set_animation_speed(anim_name, fps)
-	frames.set_animation_loop(anim_name, loop)
-	for i in frame_count:
-		var atlas := AtlasTexture.new()
-		atlas.atlas = texture
-		atlas.region = Rect2((col_start + i) * FRAME_W, sheet_row * FRAME_H, FRAME_W, FRAME_H)
-		frames.add_frame(anim_name, atlas)
+	sprite.centered = false
+	sprite.scale = Vector2(0.5, 0.5)
+	sprite.offset = Vector2(-FRAME_W / 2.0, -FRAME_H)
+	sprite.play("walk_" + last_facing)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
@@ -168,17 +145,18 @@ func _update_animation(move_dir: Vector2) -> void:
 	if visual_dir == Vector2.ZERO and is_dashing:
 		visual_dir = dash_direction
 
-	var target_animation := ""
-	if is_attacking:
-		target_animation = "bite_" + last_facing
-	elif visual_dir != Vector2.ZERO:
+	if visual_dir != Vector2.ZERO:
 		last_facing = _resolve_facing(visual_dir)
-		target_animation = "run_" + last_facing
-	else:
-		target_animation = "idle_" + last_facing
 
-	if sprite.animation != target_animation or not sprite.is_playing():
-		sprite.play(target_animation)
+	var anim := "walk_" + last_facing
+	if visual_dir == Vector2.ZERO and not is_dashing:
+		if sprite.is_playing() or sprite.animation != anim:
+			sprite.animation = anim
+			sprite.stop()
+			sprite.frame = 0
+	else:
+		if sprite.animation != anim or not sprite.is_playing():
+			sprite.play(anim)
 	sprite.flip_h = false
 
 func start_dash(direction: Vector2) -> void:
@@ -200,17 +178,10 @@ func _get_move_input() -> Vector2:
 func _resolve_facing(direction: Vector2) -> String:
 	if direction == Vector2.ZERO:
 		return last_facing
-	var x := signf(direction.x)
-	var y := signf(direction.y)
-	if y < 0.0:
-		return DIR_NE if x > 0.0 else DIR_NW
-	if y > 0.0:
-		return DIR_SW if x < 0.0 else DIR_SE
-	if x < 0.0:
-		return DIR_SW
-	if x > 0.0:
-		return DIR_NE
-	return last_facing
+	var deg := fmod(rad_to_deg(direction.angle()) + 360.0, 360.0)
+	# 0=E,45=SE,90=S,135=SW,180=W,225=NW,270=N,315=NE
+	const DIRS: Array[String] = ["E","SE","S","SW","W","NW","N","NE"]
+	return DIRS[int((deg + 22.5) / 45.0) % 8]
 
 func _can_start_attack() -> bool:
 	return not is_attacking and not is_dashing and attack_cooldown_timer <= 0.0
