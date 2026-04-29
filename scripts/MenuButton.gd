@@ -1,5 +1,5 @@
 class_name GameMenuButton
-extends Button
+extends TextureButton
 
 signal activated
 
