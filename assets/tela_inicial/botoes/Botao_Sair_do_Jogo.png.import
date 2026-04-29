@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bwiymll87tuv8"
-path="res://.godot/imported/tela_de_inicio.png-0d133fb0e7702479b3de5e31adecf593.ctex"
+uid="uid://ds0itj1trvfwf"
+path="res://.godot/imported/Botao_Sair_do_Jogo.png-e2b3ea0360e86b8f7b00fa74b594a618.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/tela_inicial/tela_de_inicio.png"
-dest_files=["res://.godot/imported/tela_de_inicio.png-0d133fb0e7702479b3de5e31adecf593.ctex"]
+source_file="res://assets/tela_inicial/botoes/Botao_Sair_do_Jogo.png"
+dest_files=["res://.godot/imported/Botao_Sair_do_Jogo.png-e2b3ea0360e86b8f7b00fa74b594a618.ctex"]
 
 [params]
 
