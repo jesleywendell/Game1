@@ -105,5 +105,6 @@ func _btn(path: String, x: float, y: float, w: float, h: float, cb: Callable) ->
 	_root.add_child(btn)
 
 func _go_main() -> void:
+	hide()
 	get_tree().paused = false
-	TransitionScreen.fade_to("res://scenes/MainMenu.tscn")
+	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
