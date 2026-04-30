@@ -13,13 +13,13 @@ signal died
 @export var attack_hitbox_distance: float = 28.0
 @export var max_health: float = 100.0
 
-const FRAME_W := 120
-const FRAME_H := 153
+const FRAME_W := 150
+const FRAME_H := 146
 const WALK_COLS := 4
 const WALK_FPS  := 8.0
 const AZRAEL_PATH := "res://assets/protagonista/walk/azrael_walk.png"
 # Ordem das linhas na sheet: N, NE, E, SE, S, SW, W, NW
-const WALK_ROW_ORDER: Array[String] = ["N","NE","E","SE","S","SW","W","NW"]
+const WALK_ROW_ORDER: Array[String] = ["S","NE","E","SE","N","SW","W","NW"]
 const INVINCIBILITY_DURATION := 0.6
 const KNOCKBACK_FORCE := 120.0
 
