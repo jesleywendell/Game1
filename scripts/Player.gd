@@ -10,7 +10,7 @@ signal died
 @export var attack_damage: float = 15.0
 @export var attack_duration: float = 0.35
 @export var attack_cooldown: float = 0.2
-@export var attack_hitbox_distance: float = 28.0
+@export var attack_hitbox_distance: float = 42.0
 @export var max_health: float = 100.0
 
 const FRAME_W := 150
@@ -62,6 +62,7 @@ func _ready() -> void:
 	_apply_stats()
 	_setup_azrael_animations()
 	_disable_attack_hitbox()
+	(attack_shape.shape as RectangleShape2D).size = Vector2(56, 40)
 	health_changed.emit(current_health, max_health)
 	camera.zoom = Vector2(2.0, 2.0)
 	ProgressionManager.upgrade_applied.connect(_apply_stats)
@@ -99,11 +100,12 @@ func _setup_azrael_animations() -> void:
 	sprite.offset = Vector2(-FRAME_W / 2.0, -FRAME_H)
 	sprite.play("walk_" + last_facing)
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mouse_event := event as InputEventMouseButton
 		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
-			attack_requested = true
+			if not get_tree().paused and not is_dead:
+				attack_requested = true
 
 func _physics_process(delta: float) -> void:
 	if _invincibility_timer > 0.0:
@@ -236,6 +238,14 @@ func _apply_attack_damage() -> void:
 		_damage_target(area)
 
 func _draw() -> void:
+	if is_attacking and attack_timer > 0.0:
+		var progress := 1.0 - (attack_timer / attack_duration)
+		var alpha    := 1.0 - progress
+		var base_angle := attack_direction.angle()
+		var half_arc   := deg_to_rad(55.0)
+		draw_arc(Vector2.ZERO, attack_hitbox_distance + 8.0,
+			base_angle - half_arc, base_angle + half_arc,
+			20, Color(1.0, 0.85, 0.3, alpha * 0.9), 3.0)
 	if skill_manager and skill_manager.skill_q_active_timer > 0.0:
 		draw_arc(Vector2.ZERO, 80.0, 0.0, TAU, 32, Color(0.6, 0.0, 1.0, 0.8), 2.0)
 
