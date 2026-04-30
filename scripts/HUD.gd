@@ -132,7 +132,6 @@ func _ready() -> void:
 	_wave_label.z_index = 3
 	add_child(_wave_label)
 
-	health_bar.hide()
 	_setup_hearts(mg, bh)
 	_setup_skill_bars(mg, vp)
 	_setup_fragments_label(mg, vp)
@@ -176,6 +175,8 @@ func _load_cropped(path: String, crop: Rect2i, out_w: int, out_h: int) -> ImageT
 	return ImageTexture.create_from_image(region)
 
 func on_health_changed(current: float, maximum: float) -> void:
+	if maximum > 0.0:
+		health_bar.value = clampf(current / maximum * 100.0, 0.0, 100.0)
 	_update_hearts(current, maximum)
 
 func on_xp_changed(current: float, required: float) -> void:
