@@ -37,6 +37,7 @@ World.tscn           → World.gd
   ├── Player         → Player.gd, SkillManager.gd
   └── HUD            → HUD.gd
 Boar.tscn            → Boar.gd
+KnightCoxinha.tscn   → KnightCoxinha.gd
 Projectile.tscn      → Projectile.gd
 ```
 
@@ -45,187 +46,225 @@ Projectile.tscn      → Projectile.gd
 |-----------|------|---------|
 | `JuiceManager` | `scripts/JuiceManager.gd` | Hit-stop, screen shake, blood particles, floating damage numbers |
 | `TransitionScreen` | `scripts/TransitionScreen.gd` | Fade in/out between scenes |
+| `ProgressionManager` | `scripts/ProgressionManager.gd` | XP, leveling, persistent upgrades, save/load |
 
 ### Key Scripts
 | File | Role |
 |------|------|
-| `scripts/Player.gd` | CharacterBody2D — movement, dash, melee, iframes, XP/leveling |
+| `scripts/Player.gd` | CharacterBody2D — movement, dash, melee, iframes, reads stats from ProgressionManager |
 | `scripts/SkillManager.gd` | Q (area burst) + E (projectile) with cooldowns |
-| `scripts/Boar.gd` | Area2D enemy — chase AI, contact damage, health bar |
+| `scripts/Boar.gd` | Area2D enemy — chase AI, contact damage, health bar, drops XP |
+| `scripts/KnightCoxinha.gd` | Area2D enemy — 8-dir walk, charge skill, states: idle/walk/skill_windup/skill_charge |
 | `scripts/WaveManager.gd` | Wave spawning, difficulty scaling, wave-clear detection |
 | `scripts/MapGenerator.gd` | Procedural forest map via FastNoiseLite |
 | `scripts/HUD.gd` | Health bar, wave label, level label, level-up flash |
+| `scripts/ProgressionManager.gd` | Autoload — XP, levels, skill points, permanent upgrades, save to .tres |
+| `scripts/PlayerData.gd` | Resource class — serialized player save data |
+| `scripts/UpgradePanel.gd` | CanvasLayer — upgrade selection UI on level up (pauses game) |
+| `scripts/PauseMenu.gd` | CanvasLayer — ESC pause menu with resume/config/main menu |
 | `scripts/JuiceManager.gd` | Autoload — all combat feedback |
 | `scripts/TransitionScreen.gd` | Autoload — scene transition fades |
-| `scripts/XpOrb.gd` | Area2D orb — magnetic to player, grants XP |
+| `scripts/XpOrb.gd` | Area2D orb — magnetic to player, calls ProgressionManager.add_xp() |
 
 ---
 
 ## What's Built (Current State)
 
 ### Player (Player.gd)
-- WASD movement (speed=200), Space dash (700px/s, 0.15s, 1s CD)
-- LMB melee attack (damage=15, duration=0.35s, hitbox at 28px)
-- Q skill → SkillManager.use_q() area burst (damage=25, 3s CD)
-- E skill → SkillManager.use_e() projectile (damage=20, 2s CD)
-- Invincibility frames: 0.6s after hit, sprite blinks
-- Hit flash (modulate tween), knockback on hit
+- WASD movement (speed=200 base, scaled by ProgressionManager)
+- Space dash (700px/s, 0.15s, 1s CD)
+- LMB melee attack (damage=15 base + upgrades, duration=0.35s)
+- Q/E skills via SkillManager
+- Invincibility frames: 0.6s, sprite blinks during iframes
+- Hit flash (modulate tween), knockback velocity on hit
 - Camera2D zoom=2.0
-- XP system: current_xp, current_level, xp_to_next (scales ×1.4/level)
-- On level up: +15 max_health, +3 attack_damage, +20 heal, emits `level_up`
-- Signals: `health_changed(current, max)`, `died`, `level_up(level)`
+- **Sprite:** `assets/protagonista/walk/azrael_walk.png` — 150×146 frames, 4 cols, 8 rows (N/NE/E/SE/S/SW/W/NW walk directions)
+- **No idle/attack animations yet** — walk animation stops on frame 0 when standing still
+- Stats driven by ProgressionManager via `_apply_stats()` — reconnects on `upgrade_applied` signal
+- Signals: `health_changed(current, max)`, `died`
 
 ### Enemy — Boar (Boar.gd)
-- Extends Area2D (NOT CharacterBody2D — no physics sliding)
-- Idle animation from `assets/critters/critters/boar/boar_SE_idle_strip.png`
-- Chase AI: detects player via group "player", moves directly toward if within 180px, stops at 20px
-- Contact damage: 10/s when player overlaps
-- Stats are `var` (not `const`) so WaveManager can scale per wave
-- Hit flash + knockback (position += direction * 18) on take_damage
-- On death: blood particles + hitstop via JuiceManager, fade out, queue_free
+- Extends Area2D
+- Sprite: `assets/critters/critters/boar/boar_SE_idle_strip.png` — 7 frames idle only
+- Chase AI: detects player via group "player", moves toward if within 180px
+- Contact damage: 10/s (scaled by WaveManager multiplier)
+- Stats are `var` — WaveManager scales HP/DAMAGE/xp_reward per wave
+- On death: calls `ProgressionManager.add_xp(xp_reward)`, blood + hitstop via JuiceManager
 - Spawns 3 XP orbs on death
-- z_index updates dynamically for isometric depth sorting
+
+### Enemy — KnightCoxinha (KnightCoxinha.gd)
+- Extends Area2D, 8-directional walk animation
+- Sprite: `assets/enemies/knight_coxinha/walk/knight_coxinha_walk.png` — 181×181 frames, 6 cols × 8 rows
+- States: `idle` / `walk` / `skill_windup` / `skill_charge`
+- Chase: detect=230px, move=55px/s, stops at 24px
+- **Charge skill:** 0.55s windup → dashes at 230px/s for 0.38s → deals 35 dmg on hit within 64px
+- Skill cooldown: 6s, only triggers if player within 210px
+- Base stats: HP=150, DAMAGE=20, xp_reward=65 (all scaled by WaveManager)
+- On death: `ProgressionManager.add_xp(xp_reward)`, JuiceManager blood + hitstop
+- Uses JuiceManager for trauma on charge land/end
 
 ### Wave System (WaveManager.gd)
-- Loaded dynamically by World.gd, NOT an autoload
-- `start_next_wave()`: spawns `int(4 * 1.18^(wave-1))` boars
-- 16 hardcoded spawn coordinates (isometric map positions)
-- Difficulty scales HP and DAMAGE per wave via multiplier
-- Tracks alive enemies via `tree_exited` signal + "active_enemies" group
+- Loaded dynamically in World.gd `_ready()`, NOT an autoload
+- Wave 1: all Boars
+- Wave 2+: every 3rd enemy (index % 3 == 2) is a KnightCoxinha
+- Spawns `int(4 * 1.18^(wave-1))` enemies per wave
+- 16 hardcoded isometric spawn coordinates
+- Tracks alive enemies: `tree_exited` signal + "active_enemies" group
 - `call_deferred("_check_wave_clear")` to avoid frame-timing bug
+- `is_inside_tree()` guard in `_check_wave_clear`
 - Signals: `wave_started(wave_number)`, `wave_cleared(wave_number)`
-- 2 second delay between waves (in World.gd `_on_wave_cleared`)
+- 2s delay between waves (World.gd `_on_wave_cleared`)
+
+### Progression System (ProgressionManager.gd — autoload)
+- Saves/loads `PlayerData` resource to `user://player_data.tres`
+- XP formula: `required = 100 * level^1.5`
+- On level up: `data.skill_points += 1`, emits `leveled_up(level)`
+- `apply_upgrade(attribute)`: consumes 1 skill point, upgrades stat, emits `upgrade_applied`
+- Upgrade bonuses: attack_damage +5, skill_damage +8, speed +15, max_health +20
+- Methods: `add_xp(amount)`, `get_attack_damage(base)`, `get_skill_damage_bonus()`, `get_speed(base)`, `get_max_health(base)`
+- `reset()` clears save data
+
+### PlayerData (PlayerData.gd)
+- `extends Resource` — serialized as .tres
+- Fields: `level`, `current_xp`, `skill_points`, `attack_damage_upgrades`, `skill_damage_upgrades`, `speed_upgrades`, `max_health_upgrades`
+
+### Upgrade Panel (UpgradePanel.gd)
+- CanvasLayer layer=20, `PROCESS_MODE_ALWAYS`
+- Shows on `leveled_up` signal — pauses game, shows 4 upgrade buttons
+- Buttons: Dano do Ataque (+5), Dano das Skills (+8), Velocidade (+15), Vida Maxima (+20)
+- Hides and unpauses when skill_points reach 0 after selection
+- Must be added as child of World or as autoload to function
+
+### Pause Menu (PauseMenu.gd)
+- CanvasLayer layer=25, `PROCESS_MODE_ALWAYS`
+- ESC toggles pause — opens/closes with fade tween
+- Assets from `assets/pause/` (background + button images)
+- Buttons: Continue, Config (stub), Return to Main Menu
+- `_go_main()` uses TransitionScreen.fade_to()
 
 ### Map (MapGenerator.gd)
-- FastNoiseLite, seed=7, 44×34 tiles, 32×32px isometric
-- Floor zones: dark soil (noise<-0.15), mossy (noise<0.15), green (noise<0.45), rocky (noise≥0.45)
+- FastNoiseLite seed=7, 44×34 tiles, 32×32px isometric
+- Floor zones by noise: dark soil / mossy / green / rocky
 - Border: tile_060/061
 - Scatter: Bones, Plants, Broken_tree, Rock, Thorn, Dead_tree from `assets/forest/`
 - Z-layer: floor(-10) → scatter(-8 to -2) → characters(0)
-- Map modulate: `Color(0.55, 0.70, 0.55, 1.0)` (greenish tint)
+- Map modulate: `Color(0.55, 0.70, 0.55, 1.0)`
 
 ### Atmosphere (World.gd `_setup_atmosphere()`)
-- CanvasLayer layer=1 with dark ambient overlay + vignette shader
+- CanvasLayer layer=1: dark ambient overlay + vignette shader (GLSL)
 - CPUParticles2D fog drifting across map
-- HUD CanvasLayer forced to layer=2 so atmosphere renders below it
+- HUD CanvasLayer forced to layer=2
 
 ### HUD (HUD.gd)
-- Health bar: TextureProgressBar with `bar_frame.png` + `bar_fill.png`
-- Wave label: "Wave N" bottom-left, flashes on wave change
-- Level label: "Lv. N" below wave label
+- Health bar: TextureProgressBar (`bar_frame.png` + `bar_fill.png`)
+- Wave label + Level label (programmatically created in _ready)
 - Level-up flash: "LEVEL UP!" centered, fades after 0.8s
-- Game over: label shows → 3s → scene reload
+- Game over: label → 3s → scene reload
 
 ### Main Menu (MainMenu.gd)
 - Background: `assets/tela_inicial/tela_de_inicio.png`
-- Buttons: Iniciar (→ TransitionScreen.fade_to World), Configurações, Créditos, Sair
+- Buttons: Iniciar → `TransitionScreen.fade_to("res://scenes/World.tscn")`
 - Fade-in on load
 
 ### JuiceManager (autoload)
-- `add_trauma(amount)` → perlin noise-based camera shake with quadratic falloff
-- `apply_hitstop(duration, scale)` → Engine.time_scale briefly
-- `spawn_blood(pos, parent)` → CPUParticles2D one-shot red burst
+- `add_trauma(amount)` → perlin noise camera shake, quadratic falloff
+- `apply_hitstop(duration, scale)` → Engine.time_scale
+- `spawn_blood(pos, parent)` → CPUParticles2D red burst
 - `spawn_damage_number(amount, pos, parent, is_player_hit)` → floating Label tween
-- Called from: Player.take_damage, Boar.take_damage, Boar._die()
 
 ### TransitionScreen (autoload)
-- CanvasLayer layer=10, ColorRect full screen
-- `fade_to(scene_path)` → fade black (0.35s) → change scene → fade in (0.45s)
-- Used by MainMenu._start_game()
+- CanvasLayer layer=10
+- `fade_to(scene_path)` → fade black 0.35s → load scene → fade in 0.45s
 
 ### Display
-- 1920×1080, fullscreen (mode=4), canvas_items stretch, expand aspect
-- F11 toggles fullscreen (handled in World.gd `_unhandled_input`)
+- 1920×1080 fullscreen, canvas_items stretch, expand aspect
+- F11 toggles fullscreen (World.gd `_unhandled_input`)
 
 ---
 
 ## What's MISSING vs GDD MVP
 
-These are required for the university delivery. **Read gdd.md section 7.3 for full MVP spec.**
+**Read `gdd.md` section 7.3 for full MVP spec.**
 
-### 🔴 Critical (core mechanics)
+### 🔴 Critical
 
-**1. Skills cost HP (narrative mechanic)**
-- GDD: Q (Golpe Sagrado) costs 5 HP per use, E (Lança Divina) costs 3 HP
-- Currently: skills cost nothing
-- Fix: in `SkillManager.use_q()` and `use_e()`, call `player.take_damage(5)` / `player.take_damage(3)` with no direction (no knockback, no iframes — it's self-damage)
-- This is the core narrative tension: powers are corrupted, they drain the caster
+**1. Skills cost HP** — Q costs 5 HP, E costs 3 HP (core narrative mechanic)
+- Fix: in `SkillManager.use_q/use_e`, drain HP via a method that bypasses iframes
+- Do NOT call `take_damage` — that triggers iframes and prevents stacking
+- Add `drain_hp(amount)` to Player that skips the invincibility check
 
-**2. Damage rebalance around HP cost**
-- GDD damage values: melee=1.0, Q=2.0, E=1.5 (low because skills drain player HP)
-- Current values: melee=15, Q=25, E=20 (tuned without HP cost, too high for GDD balance)
-- Needs rebalancing once HP cost is in
+**2. Damage rebalance**
+- GDD values: melee=1.0, Q=2.0, E=1.5 — designed around HP cost per use
+- Current: melee=15, Q=25, E=20 — needs tuning once HP cost is in
 
-**3. Fragmentos de Alma (soul fragments) — not XP orbs**
-- GDD: enemies drop 1-3 Fragmentos de Alma (permanent currency, kept on death)
-- Currently: enemies drop XP orbs that grant XP for leveling
-- These are different systems — fragments are permanent, XP is temporary
-- Need both or replace XP with fragments depending on design decision
+**3. Enemy types: Skeleton + Rotten Chicken**
+- GDD: Esqueleto (HP=30, dmg=10, speed=120) and Galinha Podre (HP=20, dmg=8, speed=160)
+- Currently: Boar + KnightCoxinha (both not in GDD enemy list)
+- Check with Mateus for sprite assets
 
-**4. Enemy types: Skeleton + Rotten Chicken**
-- GDD specifies Esqueleto (HP=30, dmg=10, speed=120) and Galinha Podre (HP=20, dmg=8, speed=160)
-- Currently only Boar exists (which is not in GDD enemy list)
-- Assets may not exist yet — check with Mateus (Graphic Designer)
+### 🟠 High
 
-### 🟠 High (game loop)
+**4. 90-second arena timer**
+- Each wave: 90s limit → on timeout enemies get +50% dmg/speed (frenzy)
+- HUD needs countdown display
 
-**5. 1-of-3 upgrade card selection between arenas**
-- GDD: after each arena cleared, player picks 1 of 3 random upgrades
-- Options: +10% dano, +15 HP máximo, -0.2s dash CD, habilidade bônus, velocidade +10%
-- UI: 3 PanelContainer cards, `get_tree().paused = true` while choosing
-- Cards must have `process_mode = PROCESS_MODE_WHEN_PAUSED`
+**5. Hub scene**
+- Hub Central with NPC offering permanent upgrades
+- ProgressionManager already has the upgrade logic — just needs Hub.tscn + UI
 
-**6. 90-second arena timer**
-- GDD: each wave has 90s limit
-- On timeout: remaining enemies get +50% damage and speed (frenzy mode)
-- HUD needs a timer display
+**6. Area 1 victory screen**
+- After Boss 1 (KnightCoxinha as final boss? or separate scene)
+- Show run stats, transition to hub
 
-**7. Hub scene**
-- GDD: Hub Central with 1 NPC offering permanent upgrades
-- Upgrades: Força (+3 dmg, 15 fragments), Vitalidade (+10 HP, 12 fragments), Agilidade (-0.1s dash CD, 20 fragments)
-- Max 5 upgrades per attribute
-- Requires new scene: Hub.tscn
+### 🟡 Medium
 
-### 🟡 Medium (polish)
+**7. Audio** — SFX (attack metal, damage, skill echo, death, dash) + 1 ambient track
 
-**8. Audio**
-- GDD: SFX for attack (metal lance sound), damage received, ability use (reverb + distortion), enemy death, dash
-- 1 ambient dark fantasy track
-- No audio currently implemented
+**8. Game Over screen** with run summary (enemies killed, XP, time, area reached)
+- Currently: just a label + scene reload
 
-**9. Area 1 victory screen**
-- After defeating Boss 1, show victory + run stats
-- GDD: area victory → upgrade selection → next area or hub
+**9. UpgradePanel wiring** — needs to be added as child node in World.tscn or instantiated in World.gd `_ready()`; unclear if currently connected
 
-**10. Game Over screen with run summary**
-- GDD: show enemies killed, fragments collected, total time, area reached
-- Currently: just a label + scene reload (no stats)
+**10. PauseMenu wiring** — same issue, needs to be in scene tree
 
 ---
 
 ## Common Gotchas
 
-- **Autoloads not recognized after editing project.godot externally:** Godot editor must be reloaded (Project → Reload Current Project). Autoloads ARE correctly registered in project.godot.
-- **WaveManager is NOT an autoload** — it's instantiated dynamically in World.gd `_ready()` via `load("res://scripts/WaveManager.gd").new()`
-- **Boar stats are `var` not `const`** — WaveManager sets them per-instance for difficulty scaling
-- **call_deferred for wave clear check** — enemy `tree_exited` fires before node is fully removed; checking group size immediately gives wrong count
-- **CanvasLayer layer ordering:** HUD=2, Atmosphere=1, World=0 (base)
-- **Isometric world position formula:** `Vector2((col - row) * 16.0, (col + row) * 8.0)` — use this for spawning anything on the map grid
-- **Skill HP cost must bypass iframes** — when implementing, call a separate `drain_hp()` method that skips the invincibility check, or use a flag. Otherwise player iframes prevent the HP drain.
-- **`get_tree().paused = true` freezes all nodes** — upgrade card UI must set `process_mode = PROCESS_MODE_WHEN_PAUSED`
+- **Autoloads not recognized after external edit:** Godot editor → Project → Reload Current Project
+- **WaveManager is NOT an autoload** — instantiated in World.gd `_ready()` via `load(...).new()`
+- **Boar/KnightCoxinha stats are `var`** — WaveManager sets them per-instance
+- **call_deferred for wave clear** — `tree_exited` fires before node is fully removed; check group size immediately gives wrong count
+- **CanvasLayer layer order:** PauseMenu=25 > UpgradePanel=20 > TransitionScreen=10 > HUD=2 > Atmosphere=1
+- **Isometric world position formula:** `Vector2((col - row) * 16.0, (col + row) * 8.0)`
+- **Skill HP cost must bypass iframes** — add `drain_hp()` to Player that skips `_invincibility_timer` check; never call `take_damage` for self-damage
+- **`get_tree().paused = true` freezes all nodes** — any UI shown during pause needs `process_mode = PROCESS_MODE_ALWAYS` or `PROCESS_MODE_WHEN_PAUSED`
+- **ProgressionManager.add_xp called by enemies on death** — Boar and KnightCoxinha both call this in `_die()`; XP orbs ALSO call it via player. Check for double-counting.
+- **Player._apply_stats() called on upgrade_applied** — connects in `_ready()`, safe to call multiple times
 
 ---
 
 ## Asset Locations
 
 ```
-assets/protagonista/azrael_sprites_transparent.png   — 4-dir × 3 rows, 64×70 frames
-assets/critters/critters/boar/boar_SE_idle_strip.png — boar idle, 7 frames, 41×25
+assets/protagonista/walk/azrael_walk.png              — 150×146 frames, 4 cols × 8 rows (N/NE/E/SE/S/SW/W/NW)
+assets/enemies/knight_coxinha/walk/knight_coxinha_walk.png — 181×181 frames, 6 cols × 8 rows
+assets/critters/critters/boar/boar_SE_idle_strip.png  — 41×25 frames, 7 cols idle
 assets/isometric tileset/isometric tileset/separated images/tile_000..114.png
-assets/life/bar_frame.png + bar_fill.png             — HUD health bar 220×70
-assets/forest/                                        — scatter: Bones, Broken_tree, Dead_tree, Plant, Rock, Thorn
-assets/tela_inicial/tela_de_inicio.png               — main menu background
+assets/life/bar_frame.png + bar_fill.png              — HUD health bar 220×70
+assets/forest/                                         — scatter: Bones, Broken_tree, Dead_tree, Plant, Rock, Thorn
+assets/tela_inicial/tela_de_inicio.png                — main menu background
+assets/pause/background/Paused2.png                   — pause menu background
+assets/pause/botoes/continue.png + config.png         — pause buttons
+assets/pause/return_menu_principal.png                — pause menu button
 ```
 
 ---
 
+## Workflow Convention
+
+- **OpenCode** handles all routine implementation (scripts, boilerplate, well-specified features)
+- **Claude** handles architecture, complex logic, reviewing OpenCode output, giving OpenCode prompts
+- When giving implementation tasks: write complete OpenCode prompts with exact file names, explicit code blocks, and "do not touch .tscn files" constraint
+- Never edit .tscn files via text — use Godot editor or script-based node creation in `_ready()`
+- Give OpenCode prompts ONE task at a time with clear file targets
