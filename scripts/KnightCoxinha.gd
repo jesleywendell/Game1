@@ -8,11 +8,11 @@ const WALK_ROWS  := 8
 const WALK_FPS   := 8.0
 
 var MOVE_SPEED      := 55.0
-const DETECT_RANGE    := 230.0
+const DETECT_RANGE    := 380.0
 const STOP_RANGE      := 24.0
 
 var SKILL_COOLDOWN  := 6.0
-const SKILL_RANGE     := 210.0
+const SKILL_RANGE     := 340.0
 const SKILL_DAMAGE    := 35.0
 const CHARGE_SPEED    := 230.0
 const CHARGE_DURATION := 0.38
