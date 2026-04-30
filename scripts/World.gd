@@ -2,13 +2,11 @@ extends Node2D
 
 const UPGRADE_PANEL := preload("res://scenes/UpgradePanel.tscn")
 const PAUSE_MENU    := preload("res://scenes/PauseMenu.tscn")
-const ARENA_UPGRADE_PANEL := preload("res://scripts/ArenaUpgradePanel.gd")
 
 @onready var player: CharacterBody2D = $Player
 @onready var hud: CanvasLayer = $HUD
 
 var _wave_manager: Node
-var _arena_upgrade_panel: CanvasLayer
 var _enemies_killed: int = 0
 var _run_start_time: int = 0
 var _fragments_at_start: int = 0
@@ -19,9 +17,7 @@ func _ready() -> void:
 	player.health_changed.connect(hud.on_health_changed)
 	player.died.connect(hud.on_player_died)
 	add_child(PAUSE_MENU.instantiate())
-	_arena_upgrade_panel = ARENA_UPGRADE_PANEL.new()
-	_arena_upgrade_panel.name = "ArenaUpgradePanel"
-	add_child(_arena_upgrade_panel)
+	add_child(UPGRADE_PANEL.instantiate())
 	_setup_atmosphere()
 
 	_wave_manager = load("res://scripts/WaveManager.gd").new()
@@ -37,11 +33,20 @@ func _ready() -> void:
 	_wave_manager.timer_tick.connect(hud.on_timer_tick)
 	_wave_manager.frenzy_started.connect(hud.on_frenzy_started)
 	_wave_manager.start_next_wave()
+	_start_tutorial_if_needed()
 	AudioManager.play_ambient()
 	_run_start_time = Time.get_ticks_msec()
 	_fragments_at_start = ProgressionManager.get_fragments()
 	_wave_manager.enemy_killed.connect(func(): _enemies_killed += 1)
 	player.died.connect(_on_player_died)
+
+func _start_tutorial_if_needed() -> void:
+	if ProgressionManager.data.level > 1:
+		return
+	var tm: Node = load("res://scripts/TutorialManager.gd").new()
+	tm.name = "TutorialManager"
+	add_child(tm)
+	tm.init(player)
 
 func _on_wave_started(wave_number: int) -> void:
 	print("Wave %d started" % wave_number)
@@ -49,10 +54,7 @@ func _on_wave_started(wave_number: int) -> void:
 func _on_wave_cleared(wave_number: int) -> void:
 	if wave_number >= 3:
 		return
-	await get_tree().create_timer(1.5).timeout
-	_arena_upgrade_panel.present(player)
-	await _arena_upgrade_panel.closed
-	await get_tree().create_timer(1.0).timeout
+	await get_tree().create_timer(2.0).timeout
 	_wave_manager.start_next_wave()
 
 func _on_player_died() -> void:
