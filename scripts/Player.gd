@@ -42,6 +42,11 @@ var attack_hit_active := false
 var hit_targets: Array[Node] = []
 var attack_requested := false
 var _invincibility_timer := 0.0
+var _base_dash_cooldown := 0.0
+var _temp_damage_bonus  := 0.0
+var _temp_hp_bonus      := 0.0
+var _temp_speed_bonus   := 0.0
+var _temp_dash_cd_bonus := 0.0
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var attack_area: Area2D = $AttackArea2D
@@ -53,6 +58,7 @@ func _ready() -> void:
 	_base_speed = speed
 	_base_attack_damage = attack_damage
 	_base_max_health = max_health
+	_base_dash_cooldown = dash_cooldown
 	_apply_stats()
 	_setup_azrael_animations()
 	_disable_attack_hitbox()
@@ -61,9 +67,10 @@ func _ready() -> void:
 	ProgressionManager.upgrade_applied.connect(_apply_stats)
 
 func _apply_stats() -> void:
-	speed = ProgressionManager.get_speed(_base_speed)
-	attack_damage = ProgressionManager.get_attack_damage(_base_attack_damage)
-	var new_max := ProgressionManager.get_max_health(_base_max_health)
+	speed = ProgressionManager.get_speed(_base_speed) + _temp_speed_bonus
+	attack_damage = ProgressionManager.get_attack_damage(_base_attack_damage) + _temp_damage_bonus
+	dash_cooldown = maxf(0.3, _base_dash_cooldown - _temp_dash_cd_bonus - ProgressionManager.get_dash_cd_reduction())
+	var new_max := ProgressionManager.get_max_health(_base_max_health) + _temp_hp_bonus
 	if current_health == 0.0:
 		current_health = new_max
 	elif new_max > max_health:
@@ -166,6 +173,7 @@ func start_dash(direction: Vector2) -> void:
 	dash_timer = dash_time
 	cooldown_timer = dash_cooldown
 	dash_direction = direction.normalized()
+	AudioManager.play_sfx("dash")
 
 func _get_move_input() -> Vector2:
 	var x := Input.get_axis("move_left", "move_right")
@@ -197,6 +205,7 @@ func _start_attack() -> void:
 		attack_direction = Vector2(1, 0)
 	last_facing = _resolve_facing(attack_direction)
 	hit_targets.clear()
+	AudioManager.play_sfx("attack")
 	_enable_attack_hitbox(attack_direction)
 
 func _update_attack(delta: float) -> void:
@@ -237,12 +246,25 @@ func take_damage(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
 	_invincibility_timer = INVINCIBILITY_DURATION
 	health_changed.emit(current_health, max_health)
 	_flash_hit()
+	AudioManager.play_sfx("damage_player")
 	JuiceManager.add_trauma(0.45)
 	JuiceManager.spawn_damage_number(amount, global_position, get_parent(), true)
 	if direction != Vector2.ZERO:
 		velocity += direction.normalized() * KNOCKBACK_FORCE
 	if current_health <= 0.0:
 		_die()
+
+func apply_temp_upgrade(type: String) -> void:
+	match type:
+		"damage":  _temp_damage_bonus  += attack_damage * 0.10
+		"health":  _temp_hp_bonus      += 15.0
+		"speed":   _temp_speed_bonus   += speed * 0.10
+		"dash_cd": _temp_dash_cd_bonus += 0.2
+	_apply_stats()
+
+func drain_hp(amount: float) -> void:
+	current_health = maxf(current_health - amount, 1.0)
+	health_changed.emit(current_health, max_health)
 
 func _flash_hit() -> void:
 	var tween := create_tween()
@@ -251,6 +273,7 @@ func _flash_hit() -> void:
 
 func _die() -> void:
 	is_dead = true
+	AudioManager.play_sfx("player_die")
 	set_physics_process(false)
 	died.emit()
 	sprite.modulate.a = 1.0

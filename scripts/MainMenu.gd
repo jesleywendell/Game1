@@ -32,7 +32,7 @@ func _fade_in() -> void:
 	tween.tween_property(fade_rect, "modulate:a", 0.0, 0.6)
 
 func _start_game() -> void:
-	TransitionScreen.fade_to("res://scenes/World.tscn")
+	TransitionScreen.fade_to("res://scenes/Hub.tscn")
 
 func _open_modal(title: String, message: String) -> void:
 	modal_title.text = title

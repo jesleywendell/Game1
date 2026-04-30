@@ -8,3 +8,5 @@ class_name PlayerData
 @export var skill_damage_upgrades: int = 0
 @export var speed_upgrades: int = 0
 @export var max_health_upgrades: int = 0
+@export var dash_cd_upgrades: int = 0
+@export var soul_fragments: int = 0

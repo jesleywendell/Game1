@@ -5,17 +5,49 @@ extends Node2D
 
 const TILE_W := 32
 const TILE_H := 32
-const MAP_COLS := 44
-const MAP_ROWS := 34
+const MAP_COLS := 132
+const MAP_ROWS := 102
 const TILE_PATH := "res://assets/isometric tileset/isometric tileset/separated images/tile_%03d.png"
-
-const OBJECTS_PATH := "res://assets/forest/"
 
 const TILES_DARK_SOIL := [12, 13, 14]
 const TILES_MOSSY     := [20, 21, 22, 23]
 const TILES_GREEN     := [34, 35, 36]
 const TILES_BORDER    := [60, 61]
 const TILES_ROCKY     := [60, 61]
+
+const NEW_ASSETS := "res://assets/"
+
+const INTERIOR_SCATTER: Array[Dictionary] = [
+	{"p": "props_decoracao/props_decoracao_006.png",       "z": -5, "s": 0.45},
+	{"p": "props_decoracao/props_decoracao_007.png",       "z": -5, "s": 0.40},
+	{"p": "props_decoracao/props_decoracao_008.png",       "z": -5, "s": 0.40},
+	{"p": "props_decoracao/props_decoracao_009.png",       "z": -5, "s": 0.40},
+	{"p": "props_decoracao/props_decoracao_010.png",       "z": -5, "s": 0.40},
+	{"p": "props_decoracao/props_decoracao_011.png",       "z": -5, "s": 0.40},
+	{"p": "props_decoracao/props_decoracao_012.png",       "z": -5, "s": 0.38},
+	{"p": "tombulos_cercas/tombulos_cercas_002.png",       "z": -5, "s": 0.35},
+	{"p": "tombulos_cercas/tombulos_cercas_003.png",       "z": -5, "s": 0.35},
+	{"p": "tombulos_cercas/tombulos_cercas_004.png",       "z": -5, "s": 0.35},
+	{"p": "tombulos_cercas/tombulos_cercas_005.png",       "z": -5, "s": 0.38},
+	{"p": "tombulos_cercas/tombulos_cercas_009.png",       "z": -5, "s": 0.38},
+	{"p": "tombulos_cercas/tombulos_cercas_010.png",       "z": -5, "s": 0.35},
+]
+
+const BORDER_SCATTER: Array[Dictionary] = [
+	{"p": "vegetacao_estruturas/vegetacao_estruturas_002.png", "z": -2, "s": 0.55},
+	{"p": "vegetacao_estruturas/vegetacao_estruturas_003.png", "z": -2, "s": 0.55},
+	{"p": "vegetacao_estruturas/vegetacao_estruturas_004.png", "z": -2, "s": 0.55},
+	{"p": "vegetacao_estruturas/vegetacao_estruturas_005.png", "z": -2, "s": 0.55},
+	{"p": "vegetacao_estruturas/vegetacao_estruturas_006.png", "z": -2, "s": 0.55},
+	{"p": "vegetacao_estruturas/vegetacao_estruturas_007.png", "z": -2, "s": 0.55},
+	{"p": "vegetacao_estruturas/vegetacao_estruturas_008.png", "z": -2, "s": 0.50},
+	{"p": "vegetacao_estruturas/vegetacao_estruturas_009.png", "z": -2, "s": 0.50},
+	{"p": "vegetacao_estruturas/vegetacao_estruturas_015.png", "z": -2, "s": 0.50},
+	{"p": "vegetacao_estruturas/vegetacao_estruturas_016.png", "z": -2, "s": 0.50},
+	{"p": "vegetacao_estruturas/vegetacao_estruturas_017.png", "z": -2, "s": 0.50},
+	{"p": "vegetacao_estruturas/vegetacao_estruturas_018.png", "z": -2, "s": 0.50},
+	{"p": "vegetacao_estruturas/vegetacao_estruturas_019.png", "z": -2, "s": 0.50},
+]
 
 var _occupied := {}
 
@@ -100,46 +132,24 @@ func _spawn_scatter(noise_scatter: FastNoiseLite) -> void:
 				_try_place_interior_object(col, row, seed_val)
 
 func _try_place_interior_object(col: int, row: int, seed_val: int) -> void:
-	var r: int = abs(seed_val * 7 + 13) % 100
-
-	if r < 7:
-		_place_object(col, row, "Bones_shadow1", 18, -8, 1.0)
-	elif r < 12:
-		_place_object(col, row, "Plant_shadow1", 5, -8, 1.0)
-	elif r < 15:
-		_place_object(col, row, "Broken_tree_shadow1", 7, -2, 1.3)
-	elif r < 17:
-		_place_object(col, row, "Rock_shadow1", 5, -5, 1.2)
-	elif r < 19:
-		_place_object(col, row, "Thorn_palnt_shadow2", 5, -8, 1.0)
-	elif r < 23:
-		_place_tile_as_prop(col, row, 45, -6)
-	elif r < 25:
-		_place_tile_as_prop(col, row, 65, -5)
-	elif r < 26:
-		_place_tile_as_prop(col, row, 75, -9)
+	var idx: int = abs(seed_val) % INTERIOR_SCATTER.size()
+	var e: Dictionary = INTERIOR_SCATTER[idx]
+	_place_new_scatter(col, row, NEW_ASSETS + e["p"], e["z"], e["s"])
 
 func _try_place_border_object(col: int, row: int, seed_val: int) -> void:
-	var r: int = abs(seed_val * 7 + 13) % 100
+	var idx: int = abs(seed_val) % BORDER_SCATTER.size()
+	var e: Dictionary = BORDER_SCATTER[idx]
+	_place_new_scatter(col, row, NEW_ASSETS + e["p"], e["z"], e["s"])
 
-	if r < 20:
-		_place_object(col, row, "Dead_tree_shadow1", 3, -2, 1.3)
-	elif r < 32:
-		_place_object(col, row, "Broken_tree_shadow1", 7, -2, 1.3)
-
-func _place_object(col: int, row: int, prefix: String, max_n: int, z: int, obj_scale: float) -> void:
-	var n: int = (abs(col * 31 + row * 97) % max_n) + 1
-	var filename := "%s_%d.png" % [prefix, n]
-	var full_path := OBJECTS_PATH + filename
-
+func _place_new_scatter(col: int, row: int, path: String, z: int, s: float) -> void:
+	if not ResourceLoader.exists(path):
+		return
 	var sprite := Sprite2D.new()
-	sprite.texture = load(full_path)
-	sprite.position = Vector2(
-		(col - row) * TILE_W / 2.0,
-		(col + row) * TILE_H / 4.0
-	)
+	sprite.texture = load(path)
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	sprite.position = Vector2((col - row) * TILE_W / 2.0, (col + row) * TILE_H / 4.0)
 	sprite.z_index = z
-	sprite.scale = Vector2(obj_scale, obj_scale)
+	sprite.scale = Vector2(s, s)
 	add_child(sprite)
 	_mark_occupied(col, row)
 
@@ -147,14 +157,3 @@ func _mark_occupied(col: int, row: int) -> void:
 	for dc in [-1, 0, 1]:
 		for dr in [-1, 0, 1]:
 			_occupied[Vector2i(col + dc, row + dr)] = true
-
-func _place_tile_as_prop(col: int, row: int, tile_index: int, z: int) -> void:
-	var sprite := Sprite2D.new()
-	sprite.texture = load(TILE_PATH % tile_index)
-	sprite.position = Vector2(
-		(col - row) * TILE_W / 2.0,
-		(col + row) * TILE_H / 4.0
-	)
-	sprite.z_index = z
-	_mark_occupied(col, row)
-	add_child(sprite)

@@ -46,6 +46,9 @@ func _physics_process(delta: float) -> void:
 func use_q(player: CharacterBody2D) -> void:
 	if cooldown_q_timer > 0.0 or skill_q_active_timer > 0.0:
 		return
+	player.drain_hp(5.0)
+	AudioManager.play_sfx("skill_q")
+	AudioManager.play_sfx("hp_drain")
 	_player_ref = player
 	skill_q_hit_targets.clear()
 	skill_area_shape.disabled = false
@@ -56,6 +59,9 @@ func use_q(player: CharacterBody2D) -> void:
 func use_e(player: CharacterBody2D, mouse_pos: Vector2) -> void:
 	if cooldown_e_timer > 0.0:
 		return
+	player.drain_hp(3.0)
+	AudioManager.play_sfx("skill_e")
+	AudioManager.play_sfx("hp_drain")
 	var projectile: Area2D = PROJECTILE_SCENE.instantiate()
 	projectile.global_position = player.global_position
 	var dir := (mouse_pos - player.global_position)

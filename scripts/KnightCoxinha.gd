@@ -7,11 +7,11 @@ const WALK_COLS  := 6
 const WALK_ROWS  := 8
 const WALK_FPS   := 8.0
 
-const MOVE_SPEED      := 55.0
+var MOVE_SPEED      := 55.0
 const DETECT_RANGE    := 230.0
 const STOP_RANGE      := 24.0
 
-const SKILL_COOLDOWN  := 6.0
+var SKILL_COOLDOWN  := 6.0
 const SKILL_RANGE     := 210.0
 const SKILL_DAMAGE    := 35.0
 const CHARGE_SPEED    := 230.0
@@ -29,12 +29,15 @@ var MAX_HEALTH      := 150.0
 var current_health := MAX_HEALTH
 var is_dead        := false
 var xp_reward      := 65.0
+var is_boss            := false
+var _phase2_triggered  := false
 var _damage_timer  := 0.0
 var _skill_timer   := SKILL_COOLDOWN * 0.5
 var _player: Node  = null
 var _state         := "idle"
 var _charge_dir    := Vector2.ZERO
 var _charge_timer  := 0.0
+var _frenzy_applied := false
 var _last_dir      := Vector2.RIGHT
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
@@ -170,6 +173,16 @@ func take_damage(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
 		JuiceManager.add_trauma(0.25)
 	if direction != Vector2.ZERO:
 		position += direction * 14.0
+	if is_boss and not _phase2_triggered and current_health <= MAX_HEALTH * 0.5:
+		_phase2_triggered = true
+		MOVE_SPEED = 95.0
+		SKILL_COOLDOWN = 3.0
+		var tween2 := create_tween()
+		tween2.tween_property(self, "modulate", Color(2.0, 1.8, 0.2, 1.0), 0.1)
+		tween2.tween_property(self, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.4)
+		JuiceManager.add_trauma(0.4)
+		JuiceManager.apply_hitstop(0.12)
+		AudioManager.play_sfx("boss_phase2")
 	if current_health <= 0.0:
 		_die()
 
@@ -187,12 +200,23 @@ func _die() -> void:
 	set_physics_process(false)
 	$CollisionShape2D.set_deferred("disabled", true)
 	ProgressionManager.add_xp(xp_reward)
+	var frag_amount := randi_range(10, 20) if is_boss else randi_range(1, 3)
+	ProgressionManager.add_fragments(frag_amount)
+	AudioManager.play_sfx("enemy_die")
 	JuiceManager.spawn_blood(global_position, get_parent())
 	JuiceManager.apply_hitstop(0.1)
 	JuiceManager.add_trauma(0.35)
 	var tween := create_tween()
 	tween.tween_property(self, "modulate:a", 0.0, 0.4)
 	tween.tween_callback(queue_free)
+
+func apply_frenzy() -> void:
+	if _frenzy_applied:
+		return
+	_frenzy_applied = true
+	DAMAGE     *= 1.5
+	MOVE_SPEED *= 1.5
+	modulate = Color(1.3, 0.3, 0.2, 1.0)
 
 func _draw() -> void:
 	if is_dead or current_health >= MAX_HEALTH:
