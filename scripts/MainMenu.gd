@@ -1,7 +1,6 @@
 extends Node2D
 
 @onready var btn_iniciar: GameMenuButton = $CanvasLayer/ButtonContainer/BtnIniciar
-@onready var btn_configuracoes: GameMenuButton = $CanvasLayer/ButtonContainer/BtnConfiguracoes
 @onready var btn_creditos: GameMenuButton = $CanvasLayer/ButtonContainer/BtnCreditos
 @onready var btn_sair: GameMenuButton = $CanvasLayer/ButtonContainer/BtnSair
 @onready var modal_overlay: Control = $CanvasLayer/ModalOverlay
@@ -13,9 +12,9 @@ extends Node2D
 @onready var fade_rect: ColorRect = $CanvasLayer/FadeRect
 
 func _ready() -> void:
+	get_node("CanvasLayer/ButtonContainer/BtnConfiguracoes").queue_free()
 	btn_iniciar.activated.connect(_start_game)
-	btn_configuracoes.activated.connect(func(): _open_modal("Configurações", "Esta funcionalidade\nestará disponível em breve."))
-	btn_creditos.activated.connect(func(): _open_modal("Créditos", "Esta funcionalidade\nestará disponível em breve."))
+	btn_creditos.activated.connect(func(): get_tree().change_scene_to_file("res://scenes/Credits.tscn"))
 	btn_sair.activated.connect(func(): get_tree().quit())
 	btn_fechar.pressed.connect(_close_modal)
 	modal_bg.gui_input.connect(_on_modal_bg_input)
