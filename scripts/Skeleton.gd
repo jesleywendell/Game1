@@ -15,7 +15,7 @@ const SKEL_PATH  := "res://assets/enemies/skeleton/Skeleton.png"
 const SPEAR_PATH := "res://assets/items/spear/spear_00.png"
 const FRAME_W    := 64
 const FRAME_H    := 64
-const SKEL_SCALE := 0.55
+const SKEL_SCALE := 0.85
 const WALK_FPS   := 8.0
 
 # Rows 0-3 = S,SE,E,NE (7 frames each); rows 4-7 = N,NW,W,SW (8 frames each)
@@ -68,8 +68,8 @@ func _setup_sprite() -> void:
 func _setup_spear() -> void:
 	_spear = Sprite2D.new()
 	_spear.texture = load(SPEAR_PATH)
-	_spear.scale = Vector2(0.55, 0.55)
-	_spear.position = Vector2(12.0, -13.0)
+	_spear.scale = Vector2(0.75, 0.75)
+	_spear.position = Vector2(18.0, -20.0)
 	_spear.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_child(_spear)
 
@@ -103,7 +103,7 @@ func _physics_process(delta: float) -> void:
 	# Spear: flip and reposition based on facing left or right
 	var facing_left := _last_facing in ["W","SW","NW"]
 	_spear.flip_h      = facing_left
-	_spear.position.x  = -12.0 if facing_left else 12.0
+	_spear.position.x  = -18.0 if facing_left else 18.0
 
 	z_index        = int(global_position.y / 8.0)
 	_spear.z_index = z_index + 1
