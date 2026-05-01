@@ -99,7 +99,7 @@ func _on_leveled_up(_new_level: int) -> void:
 
 func _on_upgrade_chosen(attribute: String) -> void:
 	ProgressionManager.apply_upgrade(attribute)
-	_close()
+	_refresh()
 
 func _close() -> void:
 	get_tree().paused = false
