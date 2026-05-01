@@ -217,14 +217,14 @@ func _place_tile(col: int, row: int, tile_index: int) -> void:
 
 func _place_scatter_from_list(col: int, row: int, sv: int, list: Array, base: String) -> void:
 	var e: Dictionary = list[abs(sv) % list.size()]
-	var path := base + e["p"]
+	var path: String = base + str(e["p"])
 	if not ResourceLoader.exists(path): return
 	var spr := Sprite2D.new()
 	spr.texture = load(path)
 	spr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	spr.position = Vector2((col - row) * TILE_W / 2.0, (col + row) * TILE_H / 4.0)
-	spr.z_index = e["z"]
-	spr.scale = Vector2(e["s"], e["s"])
+	spr.z_index = int(e["z"])
+	spr.scale = Vector2(float(e["s"]), float(e["s"]))
 	add_child(spr)
 	_mark_occupied(col, row)
 
