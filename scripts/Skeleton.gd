@@ -11,13 +11,16 @@ const STOP_RANGE   := 18.0
 const MAP_X        := Vector2(-1600.0, 2080.0)
 const MAP_Y        := Vector2(8.0, 1848.0)
 
-const SKEL_PATH   := "res://assets/enemies/skeleton/Skeleton.png"
-const SPEAR_PATH  := "res://assets/items/spear/spear_00.png"
-const FRAME_W     := 104
-const FRAME_H     := 64
-const WALK_FRAMES := 7
-const WALK_FPS    := 8.0
-const SKEL_SCALE  := 0.42
+const SKEL_PATH  := "res://assets/enemies/skeleton/Skeleton.png"
+const SPEAR_PATH := "res://assets/items/spear/spear_00.png"
+const FRAME_W    := 64
+const FRAME_H    := 64
+const SKEL_SCALE := 0.55
+const WALK_FPS   := 8.0
+
+# Rows 0-3 = S,SE,E,NE (7 frames each); rows 4-7 = N,NW,W,SW (8 frames each)
+const WALK_DIRS: Array[String]  = ["S","SE","E","NE","N","NW","W","SW"]
+const WALK_FRAMES: Array[int]   = [7, 7, 7, 7, 8, 8, 8, 8]
 
 var current_health  := MAX_HEALTH
 var is_dead         := false
@@ -27,7 +30,7 @@ var _frenzy_applied := false
 var _col_shape: CollisionShape2D
 var _sprite: AnimatedSprite2D
 var _spear: Sprite2D
-var _last_dir := Vector2.RIGHT
+var _last_facing    := "S"
 
 func _ready() -> void:
 	var col := CollisionShape2D.new()
@@ -44,28 +47,29 @@ func _ready() -> void:
 func _setup_sprite() -> void:
 	var tex: Texture2D = load(SKEL_PATH)
 	var frames := SpriteFrames.new()
-	frames.add_animation("walk")
-	frames.set_animation_speed("walk", WALK_FPS)
-	frames.set_animation_loop("walk", true)
-	for col in WALK_FRAMES:
-		var atlas := AtlasTexture.new()
-		atlas.atlas = tex
-		atlas.region = Rect2(col * FRAME_W, 0, FRAME_W, FRAME_H)
-		frames.add_frame("walk", atlas)
+	for row in WALK_DIRS.size():
+		var anim := "walk_" + WALK_DIRS[row]
+		frames.add_animation(anim)
+		frames.set_animation_speed(anim, WALK_FPS)
+		frames.set_animation_loop(anim, true)
+		for col in WALK_FRAMES[row]:
+			var atlas := AtlasTexture.new()
+			atlas.atlas = tex
+			atlas.region = Rect2(col * FRAME_W, row * FRAME_H, FRAME_W, FRAME_H)
+			frames.add_frame(anim, atlas)
 	_sprite = AnimatedSprite2D.new()
 	_sprite.sprite_frames = frames
 	_sprite.scale = Vector2(SKEL_SCALE, SKEL_SCALE)
 	_sprite.centered = false
 	_sprite.offset = Vector2(-FRAME_W / 2.0, -FRAME_H)
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	_sprite.play("walk")
 	add_child(_sprite)
 
 func _setup_spear() -> void:
 	_spear = Sprite2D.new()
 	_spear.texture = load(SPEAR_PATH)
 	_spear.scale = Vector2(0.55, 0.55)
-	_spear.position = Vector2(13.0, -13.0)
+	_spear.position = Vector2(12.0, -13.0)
 	_spear.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_child(_spear)
 
@@ -74,28 +78,34 @@ func _physics_process(delta: float) -> void:
 	if player_node == null or is_dead:
 		return
 
-	var dist := global_position.distance_to(player_node.global_position)
-	var moving := dist < DETECT_RANGE and dist > STOP_RANGE
+	var dist    := global_position.distance_to(player_node.global_position)
+	var dir     := Vector2.ZERO
+	var moving  := dist < DETECT_RANGE and dist > STOP_RANGE
 
 	if moving:
-		var dir := (player_node.global_position - global_position).normalized()
+		dir = (player_node.global_position - global_position).normalized()
 		position += dir * MOVE_SPEED * delta
 		position.x = clampf(position.x, MAP_X.x, MAP_X.y)
 		position.y = clampf(position.y, MAP_Y.x, MAP_Y.y)
-		_last_dir = dir
-		if not _sprite.is_playing():
-			_sprite.play("walk")
+		_last_facing = _resolve_facing(dir)
+
+	var anim := "walk_" + _last_facing
+	if moving:
+		if _sprite.animation != anim or not _sprite.is_playing():
+			_sprite.play(anim)
 	else:
+		if _sprite.animation != anim:
+			_sprite.animation = anim
 		if _sprite.is_playing():
 			_sprite.stop()
 			_sprite.frame = 0
 
-	var facing_left := _last_dir.x < 0.0
-	_sprite.flip_h = facing_left
-	_spear.flip_h  = facing_left
-	_spear.position.x = -13.0 if facing_left else 13.0
+	# Spear: flip and reposition based on facing left or right
+	var facing_left := _last_facing in ["W","SW","NW"]
+	_spear.flip_h      = facing_left
+	_spear.position.x  = -12.0 if facing_left else 12.0
 
-	z_index = int(global_position.y / 8.0)
+	z_index        = int(global_position.y / 8.0)
 	_spear.z_index = z_index + 1
 
 	if _player == null:
@@ -104,6 +114,12 @@ func _physics_process(delta: float) -> void:
 	if _damage_timer <= 0.0:
 		_damage_timer = DAMAGE_INTERVAL
 		_player.take_damage(DAMAGE, Vector2.ZERO)
+
+func _resolve_facing(d: Vector2) -> String:
+	var deg := fmod(rad_to_deg(d.angle()) + 360.0, 360.0)
+	# 0=E,45=SE,90=S,135=SW,180=W,225=NW,270=N,315=NE
+	const DIRS: Array[String] = ["E","SE","S","SW","W","NW","N","NE"]
+	return DIRS[int((deg + 22.5) / 45.0) % 8]
 
 func take_damage(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
 	if is_dead:
