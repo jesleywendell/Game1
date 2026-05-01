@@ -47,14 +47,18 @@ func start_next_wave() -> void:
 	_frenzy_active = false
 	_combat_active = true
 	current_wave += 1
-	var area       := ProgressionManager.get_current_area()
-	var area_scale := 1.0 + (area - 1) * 0.5
-	var count      := int((BASE_COUNT + (area - 1) * 2) * pow(DIFFICULTY_CURVE, current_wave - 1))
-	var multiplier := pow(DIFFICULTY_CURVE, current_wave - 1) * area_scale
+	var area        := ProgressionManager.get_current_area()
+	var area_scale  := 1.0 + (area - 1) * 0.6
+	var base        := BASE_COUNT + (area - 1) * 4
+	var count       := int(base * pow(DIFFICULTY_CURVE, current_wave - 1))
+	var multiplier  := pow(DIFFICULTY_CURVE, current_wave - 1) * area_scale
 	_alive_count = count
 	wave_started.emit(current_wave)
+	# Área 2+: knights desde a wave 1, a cada 2 inimigos; área 1: a partir da wave 3, a cada 3
+	var knight_wave := 1 if area >= 2 else 3
+	var knight_step := 2 if area >= 2 else 3
 	for i in count:
-		var is_knight := current_wave >= 3 and i % 3 == 2
+		var is_knight  := current_wave >= knight_wave and i % knight_step == knight_step - 1
 		var is_galinha := not is_knight and current_wave >= 2 and i % 4 == 3
 		if is_knight:
 			_spawn_knight(i, multiplier)
