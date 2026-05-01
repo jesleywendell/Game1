@@ -9,6 +9,20 @@ const SKILL_DMG_BONUS  := 8.0
 const SPEED_BONUS      := 15.0
 const MAX_HEALTH_BONUS := 20.0
 
+# custo(n) = base + escala * n^2  onde n = upgrades ja comprados daquele tipo
+const UPGRADE_BASE := {
+	"attack_damage": 10,
+	"skill_damage":  12,
+	"speed":         8,
+	"max_health":    6,
+}
+const UPGRADE_SCALE := {
+	"attack_damage": 5,
+	"skill_damage":  6,
+	"speed":         4,
+	"max_health":    3,
+}
+
 signal xp_changed(current: float, required: float)
 signal leveled_up(new_level: int)
 signal upgrade_applied
@@ -41,21 +55,32 @@ func add_xp(amount: float) -> void:
 	while data.current_xp >= required:
 		data.current_xp -= required
 		data.level += 1
-		data.skill_points += 1
 		required = xp_required(data.level)
 		leveled_up.emit(data.level)
 	xp_changed.emit(data.current_xp, xp_required(data.level))
 	save()
 
+func get_upgrade_count(attribute: String) -> int:
+	match attribute:
+		"attack_damage": return data.attack_damage_upgrades
+		"skill_damage":  return data.skill_damage_upgrades
+		"speed":         return data.speed_upgrades
+		"max_health":    return data.max_health_upgrades
+	return 0
+
+func get_upgrade_cost(attribute: String) -> int:
+	var n := get_upgrade_count(attribute)
+	return UPGRADE_BASE[attribute] + UPGRADE_SCALE[attribute] * n * n
+
 func apply_upgrade(attribute: String) -> void:
-	if data.skill_points <= 0:
+	var cost := get_upgrade_cost(attribute)
+	if not spend_fragments(cost):
 		return
 	match attribute:
 		"attack_damage": data.attack_damage_upgrades += 1
 		"skill_damage":  data.skill_damage_upgrades  += 1
 		"speed":         data.speed_upgrades         += 1
 		"max_health":    data.max_health_upgrades    += 1
-	data.skill_points -= 1
 	upgrade_applied.emit()
 	save()
 
@@ -70,37 +95,6 @@ func get_speed(base: float) -> float:
 
 func get_max_health(base: float) -> float:
 	return base + data.max_health_upgrades * MAX_HEALTH_BONUS
-
-const HUB_UPGRADE_COSTS := {"attack_damage": 15, "max_health": 12, "dash_cd": 20}
-const HUB_UPGRADE_MAX   := 5
-
-func buy_hub_upgrade(attribute: String) -> bool:
-	if not HUB_UPGRADE_COSTS.has(attribute):
-		return false
-	if _get_upgrade_count(attribute) >= HUB_UPGRADE_MAX:
-		return false
-	if not spend_fragments(HUB_UPGRADE_COSTS[attribute]):
-		return false
-	match attribute:
-		"attack_damage": data.attack_damage_upgrades += 1
-		"max_health":    data.max_health_upgrades    += 1
-		"dash_cd":       data.dash_cd_upgrades       += 1
-	save()
-	upgrade_applied.emit()
-	return true
-
-func get_dash_cd_reduction() -> float:
-	return data.dash_cd_upgrades * 0.1
-
-func get_hub_upgrade_count(attribute: String) -> int:
-	return _get_upgrade_count(attribute)
-
-func _get_upgrade_count(attribute: String) -> int:
-	match attribute:
-		"attack_damage": return data.attack_damage_upgrades
-		"max_health":    return data.max_health_upgrades
-		"dash_cd":       return data.dash_cd_upgrades
-	return 0
 
 func add_fragments(amount: int) -> void:
 	data.soul_fragments += amount
