@@ -14,7 +14,7 @@ signal died
 @export var max_health: float = 100.0
 
 const FRAME_W := 175
-const FRAME_H := 140
+const FRAME_H := 131
 const WALK_COLS := 4
 const WALK_FPS  := 8.0
 const AZRAEL_PATH := "res://assets/protagonista/walk/azrael_walk.png"
