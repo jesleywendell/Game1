@@ -6,6 +6,8 @@ var MAX_HEALTH      := 60.0
 const MOVE_SPEED      := 60.0
 const DETECT_RANGE    := 600.0
 const STOP_RANGE      := 20.0
+const MAP_X := Vector2(-1600.0, 2080.0)
+const MAP_Y := Vector2(8.0, 1848.0)
 const FRAME_W         := 41
 const FRAME_H         := 25
 const IDLE_FRAMES     := 7
@@ -49,6 +51,8 @@ func _physics_process(delta: float) -> void:
 	if dist < DETECT_RANGE and dist > STOP_RANGE:
 		var dir := (player_node.global_position - global_position).normalized()
 		position += dir * MOVE_SPEED * delta
+	position.x = clampf(position.x, MAP_X.x, MAP_X.y)
+	position.y = clampf(position.y, MAP_Y.x, MAP_Y.y)
 	if _player == null:
 		return
 	_damage_timer -= delta

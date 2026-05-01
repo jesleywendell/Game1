@@ -6,6 +6,8 @@ const FRAME_H    := 181
 const WALK_COLS  := 6
 const WALK_ROWS  := 8
 const WALK_FPS   := 8.0
+const MAP_X := Vector2(-1600.0, 2080.0)
+const MAP_Y := Vector2(8.0, 1848.0)
 
 var MOVE_SPEED      := 55.0
 const DETECT_RANGE    := 380.0
@@ -96,6 +98,8 @@ func _physics_process(delta: float) -> void:
 	if _state == "skill_charge":
 		_charge_timer -= delta
 		position += _charge_dir * CHARGE_SPEED * delta
+		position.x = clampf(position.x, MAP_X.x, MAP_X.y)
+		position.y = clampf(position.y, MAP_Y.x, MAP_Y.y)
 		sprite.play(_anim_for_dir(_charge_dir))
 		_check_charge_hit(player_node)
 		if _charge_timer <= 0.0:
@@ -118,6 +122,8 @@ func _physics_process(delta: float) -> void:
 		var dir := (player_node.global_position - global_position).normalized()
 		_last_dir = dir
 		position += dir * MOVE_SPEED * delta
+		position.x = clampf(position.x, MAP_X.x, MAP_X.y)
+		position.y = clampf(position.y, MAP_Y.x, MAP_Y.y)
 		sprite.play(_anim_for_dir(dir))
 		_state = "walk"
 	else:
