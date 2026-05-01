@@ -274,6 +274,7 @@ func take_damage(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
 	_flash_hit()
 	AudioManager.play_sfx("damage_player")
 	JuiceManager.add_trauma(0.45)
+	JuiceManager.spawn_blood(global_position, get_parent())
 	JuiceManager.spawn_damage_number(amount, global_position, get_parent(), true)
 	if direction != Vector2.ZERO:
 		velocity += direction.normalized() * KNOCKBACK_FORCE

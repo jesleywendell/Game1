@@ -219,7 +219,7 @@ func apply_frenzy() -> void:
 	modulate = Color(1.3, 0.3, 0.2, 1.0)
 
 func _draw() -> void:
-	if is_dead or current_health >= MAX_HEALTH:
+	if is_dead or current_health >= MAX_HEALTH or not is_boss:
 		return
 	var x := -BAR_W / 2.0
 	draw_rect(Rect2(x, BAR_Y, BAR_W, BAR_H), Color(0.15, 0.0, 0.0, 0.85))

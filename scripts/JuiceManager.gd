@@ -42,24 +42,26 @@ func _on_hitstop_end() -> void:
 	Engine.time_scale = 1.0
 
 func spawn_blood(pos: Vector2, parent: Node) -> void:
-	var p := CPUParticles2D.new()
-	p.emitting = false
-	p.one_shot = true
-	p.explosiveness = 0.92
-	p.lifetime = 0.35
-	p.amount = 10
-	p.direction = Vector2.UP
-	p.spread = 50.0
-	p.gravity = Vector2(0, 120)
-	p.initial_velocity_min = 80.0
-	p.initial_velocity_max = 180.0
-	p.scale_amount_min = 2.0
-	p.scale_amount_max = 4.0
-	p.color = Color(0.55, 0.0, 0.0, 1.0)
-	parent.add_child(p)
-	p.global_position = pos
-	p.emitting = true
-	get_tree().create_timer(0.5, false).timeout.connect(p.queue_free)
+	var sheet := randi_range(1, 5)
+	var path  := "res://assets/NEw pack blood/NEw pack blood/%d_100x100px.png" % sheet
+	var tex: Texture2D = load(path)
+	var frames := SpriteFrames.new()
+	frames.add_animation("splat")
+	frames.set_animation_speed("splat", 14.0)
+	frames.set_animation_loop("splat", false)
+	for col in 6:
+		var atlas := AtlasTexture.new()
+		atlas.atlas = tex
+		atlas.region = Rect2(col * 100, 0, 100, 100)
+		frames.add_frame("splat", atlas)
+	var spr := AnimatedSprite2D.new()
+	spr.sprite_frames = frames
+	spr.scale = Vector2(0.28, 0.28)
+	spr.z_index = 10
+	spr.animation_finished.connect(spr.queue_free)
+	parent.add_child(spr)
+	spr.global_position = pos
+	spr.play("splat")
 
 func spawn_damage_number(amount: float, pos: Vector2, parent: Node, is_player_hit: bool = false) -> void:
 	var label := Label.new()

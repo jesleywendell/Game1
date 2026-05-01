@@ -96,14 +96,7 @@ func _die() -> void:
 	tween.tween_callback(queue_free)
 
 func _draw() -> void:
-	if is_dead or current_health >= MAX_HEALTH:
-		return
-	var x := -BAR_W / 2.0
-	# fundo escuro
-	draw_rect(Rect2(x, BAR_Y, BAR_W, BAR_H), Color(0.15, 0.0, 0.0, 0.85))
-	# fill vermelho proporcional
-	var fill := BAR_W * (current_health / MAX_HEALTH)
-	draw_rect(Rect2(x, BAR_Y, fill, BAR_H), Color(0.9, 0.1, 0.1, 1.0))
+	pass
 
 func _on_body_entered(body: Node) -> void:
 	if body.has_method("take_damage"):
