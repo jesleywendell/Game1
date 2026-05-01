@@ -1,15 +1,11 @@
 extends Node2D
 
-# ── Asset paths (swap these to upgrade visuals later) ────────────────────────
 const TILE_PATH    := "res://assets/isometric tileset/isometric tileset/separated images/tile_%03d.png"
-const TILES_HUB    := [34, 35, 36]       # green tiles — main hub floor
-const TILES_PATH   := [20, 21, 22, 23]   # mossy tiles — exit path
-const TILES_EDGE   := [60, 61]           # rocky border
-# swap NPC_SPRITE for a real character sprite later
+const TILES_HUB    := [34, 35, 36]
+const TILES_PATH   := [20, 21, 22, 23]
+const TILES_EDGE   := [60, 61]
 const NPC_SPRITE   := "res://assets/props_decoracao/props_decoracao_001.png"
-# swap EXIT_SPRITE for a gate / portal sprite later
 const EXIT_SPRITE  := "res://assets/props_decoracao/props_decoracao_005.png"
-# ─────────────────────────────────────────────────────────────────────────────
 
 const PLAYER_SCENE := preload("res://scenes/Player.tscn")
 
@@ -18,27 +14,16 @@ const TILE_H    := 32
 const MAP_COLS  := 20
 const MAP_ROWS  := 14
 
-# Exit path corridor (right side of map)
 const PATH_COL_START := 13
 const PATH_ROW_MIN   := 5
 const PATH_ROW_MAX   := 8
 
-# Grid coords for key positions
 const PLAYER_COL := 3;  const PLAYER_ROW := 7
 const NPC_COL    := 8;  const NPC_ROW    := 6
 const EXIT_COL   := 19; const EXIT_ROW   := 6
 
-const UPGRADE_DEFS: Array[Dictionary] = [
-	{"attr": "attack_damage", "name": "Força",      "bonus": "+5 Ataque",     "cost": 15},
-	{"attr": "max_health",    "name": "Vitalidade",  "bonus": "+20 Vida",      "cost": 12},
-	{"attr": "dash_cd",       "name": "Agilidade",   "bonus": "-0.1s Dash CD", "cost": 20},
-]
-
 var _player: CharacterBody2D
-var _npc_prompt: Label
-var _player_near_npc  := false
 var _player_near_exit := false
-var _shop_open        := false
 var _frag_label: Label
 
 func _ready() -> void:
@@ -108,36 +93,6 @@ func _spawn_npc() -> void:
 	name_lbl.z_index = 5
 	add_child(name_lbl)
 
-	_npc_prompt = Label.new()
-	_npc_prompt.text = "[F] Loja"
-	_npc_prompt.add_theme_font_size_override("font_size", 10)
-	_npc_prompt.add_theme_color_override("font_color", Color(1.0, 1.0, 0.6))
-	_npc_prompt.position = pos + Vector2(-20, -56)
-	_npc_prompt.z_index = 6
-	_npc_prompt.hide()
-	add_child(_npc_prompt)
-
-	var area := Area2D.new()
-	area.position = pos
-	area.collision_layer = 0
-	area.collision_mask = 1
-	var shape := CollisionShape2D.new()
-	var circle := CircleShape2D.new()
-	circle.radius = 44.0
-	shape.shape = circle
-	area.add_child(shape)
-	area.body_entered.connect(func(b):
-		if b == _player:
-			_player_near_npc = true
-			_npc_prompt.show()
-	)
-	area.body_exited.connect(func(b):
-		if b == _player:
-			_player_near_npc = false
-			_npc_prompt.hide()
-	)
-	add_child(area)
-
 # ── Exit zone ─────────────────────────────────────────────────────────────────
 
 func _spawn_exit() -> void:
@@ -194,13 +149,6 @@ func _refresh_hud() -> void:
 	if _frag_label:
 		_frag_label.text = "✦ %d Fragmentos" % ProgressionManager.get_fragments()
 
-# ── Input ─────────────────────────────────────────────────────────────────────
-
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo:
-		if event.physical_keycode == KEY_F and _player_near_npc and not _shop_open:
-			_open_shop()
-
 # ── Forest prompt ─────────────────────────────────────────────────────────────
 
 func _show_forest_prompt() -> void:
@@ -231,56 +179,6 @@ func _show_forest_prompt() -> void:
 		cl.queue_free()
 	)
 	hbox.add_child(no)
-
-# ── Shop ──────────────────────────────────────────────────────────────────────
-
-func _open_shop() -> void:
-	_shop_open = true
-	get_tree().paused = true
-	var cl := _make_overlay(20, "ShopPanel")
-	var vbox := _make_vbox(cl, 460)
-
-	_make_label(vbox, "Mercador", 36, Color(0.9, 0.75, 0.2))
-	_make_label(vbox, "\"Fragmentos de alma... trocá-los por força.\"", 13, Color(0.6, 0.55, 0.65))
-
-	var frag_lbl := _make_label(vbox, "", 20, Color(0.85, 0.75, 0.25))
-
-	var sep := HSeparator.new()
-	sep.custom_minimum_size = Vector2(400, 8)
-	vbox.add_child(sep)
-
-	var btns: Array[Button] = []
-	for def in UPGRADE_DEFS:
-		var btn := _make_button("", 18, 400)
-		btn.pressed.connect(func():
-			ProgressionManager.buy_hub_upgrade(def["attr"])
-			_refresh_shop(btns, frag_lbl)
-		)
-		vbox.add_child(btn)
-		btns.append(btn)
-
-	var sep2 := HSeparator.new()
-	sep2.custom_minimum_size = Vector2(400, 8)
-	vbox.add_child(sep2)
-
-	var close := _make_button("Fechar", 18, 200)
-	close.pressed.connect(func():
-		_shop_open = false
-		get_tree().paused = false
-		cl.queue_free()
-	)
-	vbox.add_child(close)
-
-	_refresh_shop(btns, frag_lbl)
-
-func _refresh_shop(btns: Array[Button], frag_lbl: Label) -> void:
-	frag_lbl.text = "✦  %d Fragmentos de Alma" % ProgressionManager.get_fragments()
-	for i in btns.size():
-		var def: Dictionary = UPGRADE_DEFS[i]
-		var lvl  := ProgressionManager.get_hub_upgrade_count(def["attr"])
-		var cost := def["cost"] as int
-		btns[i].text     = "%s  Lv.%d/5  —  %s  (✦ %d)" % [def["name"], lvl, def["bonus"], cost]
-		btns[i].disabled = lvl >= 5 or ProgressionManager.get_fragments() < cost
 
 # ── UI helpers ────────────────────────────────────────────────────────────────
 
