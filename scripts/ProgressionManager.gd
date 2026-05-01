@@ -11,16 +11,16 @@ const MAX_HEALTH_BONUS := 20.0
 
 # custo(n) = base + escala * n^2  onde n = upgrades ja comprados daquele tipo
 const UPGRADE_BASE := {
-	"attack_damage": 10,
-	"skill_damage":  12,
-	"speed":         8,
-	"max_health":    6,
-}
-const UPGRADE_SCALE := {
 	"attack_damage": 5,
-	"skill_damage":  6,
+	"skill_damage":  7,
 	"speed":         4,
 	"max_health":    3,
+}
+const UPGRADE_SCALE := {
+	"attack_damage": 3,
+	"skill_damage":  4,
+	"speed":         2,
+	"max_health":    2,
 }
 
 signal xp_changed(current: float, required: float)

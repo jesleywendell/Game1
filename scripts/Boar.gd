@@ -87,6 +87,7 @@ func _die() -> void:
 	set_physics_process(false)
 	$CollisionShape2D.set_deferred("disabled", true)
 	ProgressionManager.add_xp(xp_reward)
+	ProgressionManager.add_fragments(randi_range(1, 3))
 	JuiceManager.spawn_blood(global_position, get_parent())
 	JuiceManager.apply_hitstop(0.08)
 	JuiceManager.add_trauma(0.3)
