@@ -70,7 +70,7 @@ func _ready() -> void:
 func _apply_stats() -> void:
 	speed = ProgressionManager.get_speed(_base_speed) + _temp_speed_bonus
 	attack_damage = ProgressionManager.get_attack_damage(_base_attack_damage) + _temp_damage_bonus
-	dash_cooldown = maxf(0.3, _base_dash_cooldown - _temp_dash_cd_bonus - ProgressionManager.get_dash_cd_reduction())
+	dash_cooldown = maxf(0.3, _base_dash_cooldown - _temp_dash_cd_bonus)
 	var new_max := ProgressionManager.get_max_health(_base_max_health) + _temp_hp_bonus
 	if current_health == 0.0:
 		current_health = new_max
