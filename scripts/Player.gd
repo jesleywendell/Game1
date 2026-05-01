@@ -22,6 +22,9 @@ const AZRAEL_PATH := "res://assets/protagonista/walk/azrael_walk.png"
 const WALK_ROW_ORDER: Array[String] = ["S","SW","W","NW","N","NE","E","SE"]
 const INVINCIBILITY_DURATION := 0.6
 const KNOCKBACK_FORCE := 120.0
+const REGEN_DELAY  := 10.0
+const REGEN_AMOUNT := 10.0
+const REGEN_TICK   := 1.0
 
 var current_health: float
 var is_dead := false
@@ -46,7 +49,9 @@ var _base_dash_cooldown := 0.0
 var _temp_damage_bonus  := 0.0
 var _temp_hp_bonus      := 0.0
 var _temp_speed_bonus   := 0.0
-var _temp_dash_cd_bonus := 0.0
+var _temp_dash_cd_bonus  := 0.0
+var _no_damage_timer     := 0.0
+var _regen_tick_timer    := 0.0
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var attack_area: Area2D = $AttackArea2D
@@ -125,6 +130,15 @@ func _physics_process(delta: float) -> void:
 		cooldown_timer -= delta
 	if attack_cooldown_timer > 0:
 		attack_cooldown_timer -= delta
+
+	if not is_dead and current_health < max_health:
+		_no_damage_timer += delta
+		if _no_damage_timer >= REGEN_DELAY:
+			_regen_tick_timer -= delta
+			if _regen_tick_timer <= 0.0:
+				_regen_tick_timer = REGEN_TICK
+				current_health = minf(current_health + REGEN_AMOUNT, max_health)
+				health_changed.emit(current_health, max_health)
 
 	if attack_requested and _can_start_attack():
 		_start_attack()
@@ -254,6 +268,8 @@ func take_damage(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
 		return
 	current_health = maxf(current_health - amount, 0.0)
 	_invincibility_timer = INVINCIBILITY_DURATION
+	_no_damage_timer = 0.0
+	_regen_tick_timer = REGEN_TICK
 	health_changed.emit(current_health, max_health)
 	_flash_hit()
 	AudioManager.play_sfx("damage_player")
@@ -274,6 +290,8 @@ func apply_temp_upgrade(type: String) -> void:
 
 func drain_hp(amount: float) -> void:
 	current_health = maxf(current_health - amount, 1.0)
+	_no_damage_timer = 0.0
+	_regen_tick_timer = REGEN_TICK
 	health_changed.emit(current_health, max_health)
 
 func _flash_hit() -> void:
