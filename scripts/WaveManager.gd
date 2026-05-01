@@ -47,8 +47,10 @@ func start_next_wave() -> void:
 	_frenzy_active = false
 	_combat_active = true
 	current_wave += 1
-	var count := int(BASE_COUNT * pow(DIFFICULTY_CURVE, current_wave - 1))
-	var multiplier := pow(DIFFICULTY_CURVE, current_wave - 1)
+	var area       := ProgressionManager.get_current_area()
+	var area_scale := 1.0 + (area - 1) * 0.5
+	var count      := int((BASE_COUNT + (area - 1) * 2) * pow(DIFFICULTY_CURVE, current_wave - 1))
+	var multiplier := pow(DIFFICULTY_CURVE, current_wave - 1) * area_scale
 	_alive_count = count
 	wave_started.emit(current_wave)
 	for i in count:
@@ -133,12 +135,14 @@ func _check_wave_clear() -> void:
 		wave_cleared.emit(current_wave)
 
 func _spawn_boss() -> void:
+	var area       := ProgressionManager.get_current_area()
+	var area_scale := 1.0 + (area - 1) * 0.5
 	var boss = KNIGHT_SCENE.instantiate()
 	boss.position = Vector2(0.0, -40.0)
-	boss.MAX_HEALTH = 250.0
-	boss.current_health = 250.0
-	boss.DAMAGE = 30.0
-	boss.xp_reward = 200.0
+	boss.MAX_HEALTH = 250.0 * area_scale
+	boss.current_health = 250.0 * area_scale
+	boss.DAMAGE = 30.0 * area_scale
+	boss.xp_reward = 200.0 * area_scale
 	boss.is_boss = true
 	boss.add_to_group("active_enemies")
 	boss.tree_exited.connect(_on_boss_died)

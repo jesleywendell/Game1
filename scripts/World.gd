@@ -159,6 +159,7 @@ func _on_boss_spawned() -> void:
 	hud.show_boss_label()
 
 func _on_area_cleared() -> void:
+	ProgressionManager.advance_area()
 	await get_tree().create_timer(2.5).timeout
 	_show_victory_overlay()
 
@@ -186,7 +187,7 @@ func _show_victory_overlay() -> void:
 	root_ctrl.add_child(vbox)
 
 	var title := Label.new()
-	title.text = "ÁREA 1 VENCIDA"
+	title.text = "ÁREA %d VENCIDA" % (ProgressionManager.get_current_area() - 1)
 	title.add_theme_font_size_override("font_size", 48)
 	title.add_theme_color_override("font_color", Color(0.9, 0.75, 0.2, 1.0))
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

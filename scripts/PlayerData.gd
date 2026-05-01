@@ -8,3 +8,4 @@ class_name PlayerData
 @export var speed_upgrades: int = 0
 @export var max_health_upgrades: int = 0
 @export var soul_fragments: int = 0
+@export var current_area: int = 1

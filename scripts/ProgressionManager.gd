@@ -111,3 +111,10 @@ func spend_fragments(amount: int) -> bool:
 
 func get_fragments() -> int:
 	return data.soul_fragments
+
+func get_current_area() -> int:
+	return data.current_area
+
+func advance_area() -> void:
+	data.current_area += 1
+	save()
