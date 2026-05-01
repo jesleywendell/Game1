@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ch7deccl4w11t"
-path="res://.godot/imported/azrael_walk.jpg-577cadb1b0a9909e945367364d00391e.ctex"
+uid="uid://u6errpl4gr3q"
+path="res://.godot/imported/azrael_walk2.jpg-63d2661aac888a1c242d04dfaa26b50e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/protagonista/walk/azrael_walk.jpg"
-dest_files=["res://.godot/imported/azrael_walk.jpg-577cadb1b0a9909e945367364d00391e.ctex"]
+source_file="res://assets/protagonista/walk/azrael_walk2.jpg"
+dest_files=["res://.godot/imported/azrael_walk2.jpg-63d2661aac888a1c242d04dfaa26b50e.ctex"]
 
 [params]
 
