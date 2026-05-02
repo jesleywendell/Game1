@@ -3,10 +3,11 @@
 ## ❌ MISSING — Needed, not yet delivered
 
 ### Enemy Sprites (Mateus)
-- [ ] **Skeleton** sprite — `Skeleton.gd` uses white placeholder circle (r=14)
-- [ ] **GalinhaPodre** sprite — `GalinhaPodre.gd` uses green placeholder circle (r=12)
+- [x] **Skeleton** sprite — `Skeleton.gd` loads `assets/enemies/skeleton/Skeleton.png` (64×64 frames, 8-dir walk)
+- [x] **Skeleton spear** — `assets/items/spear/spear_00.png` — attached visually to skeleton
+- [ ] **GalinhaPodre** sprite — `GalinhaPodre.gd` uses procedural green circle (r=12) as placeholder. No sprite asset exists.
 
-> Minimum format: single-direction strip PNG (SE direction, like Boar). Drop into `assets/enemies/` and update the script's `_setup_animations()`.
+> Skeleton is functional with proper sprite. GalinhaPodre needs a sprite asset — minimum format: single-direction strip PNG (SE direction, like Boar). Drop into `assets/enemies/galinha_podre/` and update `GalinhaPodre.gd` to load it instead of using `_draw()`.
 
 ### Audio (entire folder missing — `res://assets/audio/`)
 - [ ] `sfx_attack.ogg` — melee swing
