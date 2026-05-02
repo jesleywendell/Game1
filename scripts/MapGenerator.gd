@@ -7,6 +7,7 @@ const MAP_ROWS := 102
 const TILE_PATH := "res://assets/isometric tileset/isometric tileset/separated images/tile_%03d.png"
 const NEW_ASSETS := "res://assets/"
 const CURSED_ASSETS := "res://assets/Free-Cursed-Land-Top-Down-Pixel-Art-Tileset/PNG/Objects_separetely/"
+const UNDEAD_ASSETS := "res://assets/Free-Undead-Tileset-Top-Down-Pixel-Art/PNG/Objects_separately/"
 
 # Phase 1 tiles
 const TILES_DARK_SOIL := [12, 13, 14]
@@ -15,9 +16,13 @@ const TILES_GREEN     := [34, 35, 36]
 const TILES_BORDER    := [60, 61]
 const TILES_ROCKY     := [60, 61]
 
-# Phase 2 tiles — only dark soil + rocky
+# Phase 2 tiles — dark soil + rocky
 const TILES_CURSED_FLOOR  := [12, 13, 14]
 const TILES_CURSED_ROCKY  := [60, 61]
+
+# Phase 3 tiles — predominantly rocky/stone (graveyard)
+const TILES_UNDEAD_FLOOR  := [60, 61]
+const TILES_UNDEAD_PATCH  := [12, 13, 14]
 
 const INTERIOR_SCATTER: Array[Dictionary] = [
 	{"p": "props_decoracao/props_decoracao_006.png",       "z": -5, "s": 0.45},
@@ -75,6 +80,38 @@ const CURSED_BORDER: Array[String] = [
 	"Ruins_shadow1_6.png",
 ]
 
+# Phase 3 scatter — undead graveyard
+const UNDEAD_INTERIOR: Array[String] = [
+	"Grave_shadow1_1.png",
+	"Grave_shadow1_4.png",
+	"Grave_shadow1_7.png",
+	"Grave_shadow1_11.png",
+	"Grave_shadow1_15.png",
+	"Bones_shadow1_1.png",
+	"Bones_shadow1_5.png",
+	"Bones_shadow1_10.png",
+	"Bones_shadow1_15.png",
+	"Crystal_shadow1_1.png",
+	"Crystal_shadow1_3.png",
+	"Dead_arm_shadow1_1.png",
+	"Dead_arm_shadow1_3.png",
+	"Rock_shadow1_1.png",
+	"Rock_shadow1_3.png",
+	"Ruin_shadow1_1.png",
+	"Ruin_shadow1_4.png",
+]
+
+const UNDEAD_BORDER: Array[String] = [
+	"Broken_tree_shadow1_1.png",
+	"Broken_tree_shadow1_2.png",
+	"Broken_tree_shadow1_4.png",
+	"Dead_tree_shadow1_1.png",
+	"Dead_tree_shadow1_3.png",
+	"Thorn_plant_shadow1_1.png",
+	"Thorn_plant_shadow1_3.png",
+	"Thorn_plant_shadow1_5.png",
+]
+
 var _occupied := {}
 
 func _ready() -> void:
@@ -88,11 +125,16 @@ func _ready() -> void:
 		_generate_forest()
 		_spawn_scatter(noise_scatter)
 		modulate = Color(0.55, 0.70, 0.55, 1.0)
-	else:
+	elif area == 2:
 		noise_scatter.seed = 91
 		_generate_cursed()
-		_spawn_cursed_scatter(noise_scatter)
+		_spawn_area_scatter(noise_scatter, CURSED_INTERIOR, CURSED_BORDER, CURSED_ASSETS, 0.30)
 		modulate = Color(0.72, 0.38, 0.38, 1.0)
+	else:
+		noise_scatter.seed = 63
+		_generate_undead()
+		_spawn_area_scatter(noise_scatter, UNDEAD_INTERIOR, UNDEAD_BORDER, UNDEAD_ASSETS, 0.28)
+		modulate = Color(0.38, 0.40, 0.58, 1.0)
 
 	_add_border_colliders()
 
@@ -155,22 +197,42 @@ func _generate_cursed() -> void:
 					idx = TILES_CURSED_ROCKY[_stable_pick(s, TILES_CURSED_ROCKY.size())]
 			_place_tile(col, row, idx)
 
-func _spawn_cursed_scatter(noise_scatter: FastNoiseLite) -> void:
+func _generate_undead() -> void:
+	var noise := FastNoiseLite.new()
+	noise.seed = 59
+	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	noise.frequency = 0.09
 	for row in MAP_ROWS:
 		for col in MAP_COLS:
-			if noise_scatter.get_noise_2d(col, row) < 0.30: continue
+			var is_border := row == 0 or row == MAP_ROWS - 1 or col == 0 or col == MAP_COLS - 1
+			var idx: int
+			if is_border:
+				idx = TILES_BORDER[_stable_pick(col + row * MAP_COLS, TILES_BORDER.size())]
+			else:
+				var n := noise.get_noise_2d(col, row)
+				var s := col * 31 + row * 97
+				if n < 0.15:
+					idx = TILES_UNDEAD_PATCH[_stable_pick(s, TILES_UNDEAD_PATCH.size())]
+				else:
+					idx = TILES_UNDEAD_FLOOR[_stable_pick(s, TILES_UNDEAD_FLOOR.size())]
+			_place_tile(col, row, idx)
+
+func _spawn_area_scatter(noise_scatter: FastNoiseLite, interior: Array, border: Array, base: String, threshold: float) -> void:
+	for row in MAP_ROWS:
+		for col in MAP_COLS:
+			if noise_scatter.get_noise_2d(col, row) < threshold: continue
 			if _occupied.has(Vector2i(col, row)): continue
 			if row == 0 or row == MAP_ROWS - 1 or col == 0 or col == MAP_COLS - 1: continue
 			var border_zone := row <= 3 or row >= MAP_ROWS - 4 or col <= 3 or col >= MAP_COLS - 4
 			var sv := col * 31 + row * 97
 			if border_zone:
-				_place_cursed_object(col, row, sv, CURSED_BORDER, -2, 0.40)
+				_place_named_object(col, row, sv, border, base, -2, 0.40)
 			else:
-				_place_cursed_object(col, row, sv, CURSED_INTERIOR, -5, 0.35)
+				_place_named_object(col, row, sv, interior, base, -5, 0.35)
 
-func _place_cursed_object(col: int, row: int, sv: int, arr: Array, z: int, s: float) -> void:
+func _place_named_object(col: int, row: int, sv: int, arr: Array, base: String, z: int, s: float) -> void:
 	var file: String = arr[abs(sv) % arr.size()]
-	var path := CURSED_ASSETS + file
+	var path: String = base + file
 	if not ResourceLoader.exists(path): return
 	var spr := Sprite2D.new()
 	spr.texture = load(path)

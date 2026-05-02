@@ -54,12 +54,21 @@ func start_next_wave() -> void:
 	var multiplier  := pow(DIFFICULTY_CURVE, current_wave - 1) * area_scale
 	_alive_count = count
 	wave_started.emit(current_wave)
-	# Área 2+: knights desde a wave 1, a cada 2 inimigos; área 1: a partir da wave 3, a cada 3
-	var knight_wave := 1 if area >= 2 else 3
-	var knight_step := 2 if area >= 2 else 3
 	for i in count:
-		var is_knight  := current_wave >= knight_wave and i % knight_step == knight_step - 1
-		var is_galinha := not is_knight and current_wave >= 2 and i % 4 == 3
+		var is_knight  := false
+		var is_galinha := false
+		if area >= 3:
+			# Fase 3: rotacao fixa knight → galinha → skeleton desde wave 1
+			is_knight  = i % 3 == 0
+			is_galinha = i % 3 == 1
+		elif area >= 2:
+			# Fase 2: knight a cada 2, galinha esporadica
+			is_knight  = i % 2 == 1
+			is_galinha = not is_knight and current_wave >= 2 and i % 4 == 3
+		else:
+			# Fase 1: knight so na wave 3+, galinha na wave 2+
+			is_knight  = current_wave >= 3 and i % 3 == 2
+			is_galinha = not is_knight and current_wave >= 2 and i % 4 == 3
 		if is_knight:
 			_spawn_knight(i, multiplier)
 		elif is_galinha:
