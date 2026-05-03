@@ -9,6 +9,7 @@ const PAUSE_MENU    := preload("res://scenes/PauseMenu.tscn")
 var _wave_manager: Node
 var _enemies_killed: int = 0
 var _run_start_time: int = 0
+var _upgrade_panel: CanvasLayer
 var _fragments_at_start: int = 0
 
 func _ready() -> void:
@@ -17,7 +18,10 @@ func _ready() -> void:
 	player.health_changed.connect(hud.on_health_changed)
 	player.died.connect(hud.on_player_died)
 	add_child(PAUSE_MENU.instantiate())
-	add_child(UPGRADE_PANEL.instantiate())
+	var upgrade_panel := UPGRADE_PANEL.instantiate()
+	add_child(upgrade_panel)
+	_upgrade_panel = upgrade_panel
+	ProgressionManager.leveled_up.connect(func(_lvl): _upgrade_panel.queue_level_up())
 	_setup_atmosphere()
 
 	_wave_manager = load("res://scripts/WaveManager.gd").new()
@@ -54,6 +58,7 @@ func _on_wave_started(wave_number: int) -> void:
 func _on_wave_cleared(wave_number: int) -> void:
 	if wave_number >= 3:
 		return
+	_upgrade_panel.show_queued()
 	await get_tree().create_timer(2.0).timeout
 	_wave_manager.start_next_wave()
 
@@ -130,6 +135,7 @@ func _show_game_over_overlay() -> void:
 	btn_retry.add_theme_font_size_override("font_size", 22)
 	btn_retry.custom_minimum_size = Vector2(260, 50)
 	btn_retry.pressed.connect(func():
+		ProgressionManager.reset_level()
 		get_tree().paused = false
 		get_tree().reload_current_scene()
 	)
@@ -159,6 +165,8 @@ func _on_boss_spawned() -> void:
 	hud.show_boss_label()
 
 func _on_area_cleared() -> void:
+	if player.is_dead:
+		return
 	ProgressionManager.advance_area()
 	await get_tree().create_timer(2.5).timeout
 	_show_victory_overlay()

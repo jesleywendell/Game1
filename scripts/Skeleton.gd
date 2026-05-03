@@ -80,7 +80,7 @@ func _physics_process(delta: float) -> void:
 
 	var dist    := global_position.distance_to(player_node.global_position)
 	var dir     := Vector2.ZERO
-	var moving  := dist < DETECT_RANGE and dist > STOP_RANGE
+	var moving  := dist > STOP_RANGE
 
 	if moving:
 		dir = (player_node.global_position - global_position).normalized()
@@ -156,6 +156,9 @@ func _die() -> void:
 	JuiceManager.spawn_blood(global_position, get_parent())
 	JuiceManager.apply_hitstop(0.08)
 	JuiceManager.add_trauma(0.3)
+	var player_node := get_tree().get_first_node_in_group("player")
+	if player_node and player_node.has_method("heal"):
+		player_node.heal(3.0)
 	var tween := create_tween()
 	tween.tween_property(self, "modulate:a", 0.0, 0.4)
 	tween.tween_callback(queue_free)

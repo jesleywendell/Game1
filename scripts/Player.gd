@@ -295,6 +295,10 @@ func drain_hp(amount: float) -> void:
 	_regen_tick_timer = REGEN_TICK
 	health_changed.emit(current_health, max_health)
 
+func heal(amount: float) -> void:
+	current_health = minf(current_health + amount, max_health)
+	health_changed.emit(current_health, max_health)
+
 func _flash_hit() -> void:
 	var tween := create_tween()
 	tween.tween_property(sprite, "modulate", Color(2.0, 0.3, 0.3, 1.0), 0.05)

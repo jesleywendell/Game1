@@ -191,7 +191,7 @@ func on_xp_changed(current: float, required: float) -> void:
 	_level_label.text = "Lv.%d" % ProgressionManager.data.level
 
 func on_wave_started(wave_number: int) -> void:
-	_wave_label.text = "Wave %d" % wave_number
+	_wave_label.text = "Fase %d — Wave %d" % [ProgressionManager.get_current_area(), wave_number]
 
 	var tween := create_tween()
 	tween.tween_property(_wave_label, "modulate:a", 1.0, 0.0)
@@ -199,7 +199,7 @@ func on_wave_started(wave_number: int) -> void:
 
 func show_boss_label() -> void:
 	if _wave_label:
-		_wave_label.text = "⚔ BOSS ⚔"
+		_wave_label.text = "⚔ Fase %d — BOSS ⚔" % ProgressionManager.get_current_area()
 		_wave_label.add_theme_color_override("font_color", Color(1.0, 0.3, 0.15, 1.0))
 	if _timer_label:
 		_timer_label.hide()
@@ -265,28 +265,70 @@ func _update_hearts(current: float, maximum: float) -> void:
 			_heart_labels[i].add_theme_color_override("font_color", Color(0.35, 0.10, 0.10, 0.6))
 
 func _setup_skill_bars(margin: int, vp: Vector2) -> void:
-	var bar_w := 56
-	var bar_h := 10
-	var base_y := int(vp.y) - margin - bar_h - 22
+	var bar_w := 80
+	var bar_h := 16
+	var panel_w := bar_w + 16
+	var panel_h := bar_h + 34
+	var group_gap := 16
+	var total_w := panel_w * 2 + group_gap
+	var base_y := int(vp.y) - margin - panel_h - 12
+
+	var sep := HSeparator.new()
+	sep.add_theme_color_override("color", Color(0.75, 0.63, 0.19, 0.6))
+	sep.custom_minimum_size = Vector2(total_w, 2)
+	sep.position = Vector2(margin, base_y - 14)
+	sep.size = Vector2(total_w, 2)
+	add_child(sep)
+
 	for i in 2:
 		var key := "Q" if i == 0 else "E"
-		var x := margin + i * (bar_w + 12)
+		var x := margin + i * (panel_w + group_gap)
+
+		var panel := Panel.new()
+		var panel_sb := StyleBoxFlat.new()
+		panel_sb.bg_color = Color(0.10, 0.10, 0.18, 0.85)
+		panel_sb.border_color = Color(0.75, 0.63, 0.19, 0.6)
+		panel_sb.border_width_left = 1
+		panel_sb.border_width_right = 1
+		panel_sb.border_width_top = 1
+		panel_sb.border_width_bottom = 1
+		panel_sb.corner_radius_top_left = 4
+		panel_sb.corner_radius_top_right = 4
+		panel_sb.corner_radius_bottom_left = 4
+		panel_sb.corner_radius_bottom_right = 4
+		panel.add_theme_stylebox_override("panel", panel_sb)
+		panel.position = Vector2(x, base_y)
+		panel.size = Vector2(panel_w, panel_h)
+		add_child(panel)
+
 		var key_lbl := Label.new()
-		key_lbl.text = "[%s]" % key
-		key_lbl.add_theme_font_size_override("font_size", 14)
-		key_lbl.position = Vector2(x, base_y - 18)
-		key_lbl.size = Vector2(bar_w, 18)
+		key_lbl.text = key
+		key_lbl.add_theme_font_size_override("font_size", 18)
+		key_lbl.add_theme_color_override("font_color", Color(0.95, 0.85, 0.3))
 		key_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		add_child(key_lbl)
+		key_lbl.position = Vector2(0, 4)
+		key_lbl.size = Vector2(panel_w, 22)
+		panel.add_child(key_lbl)
+
 		var bar := ProgressBar.new()
 		bar.min_value = 0.0
 		bar.max_value = 100.0
 		bar.value = 100.0
 		bar.show_percentage = false
 		bar.custom_minimum_size = Vector2(bar_w, bar_h)
-		bar.position = Vector2(x, base_y)
+		bar.position = Vector2(8, 28)
 		bar.size = Vector2(bar_w, bar_h)
-		add_child(bar)
+
+		var fill_sb := StyleBoxFlat.new()
+		fill_sb.bg_color = Color(0.75, 0.55, 0.15)
+		bar.add_theme_stylebox_override("fill", fill_sb)
+
+		var bg_sb := StyleBoxFlat.new()
+		bg_sb.bg_color = Color(0.05, 0.05, 0.08, 0.7)
+		bar.add_theme_stylebox_override("background", bg_sb)
+
+		panel.add_child(bar)
+
 		if i == 0:
 			_q_bar = bar
 			_q_label = key_lbl
@@ -314,9 +356,9 @@ func _process(_delta: float) -> void:
 	if _e_bar:
 		_e_bar.value = e_ready * 100.0
 	if _q_label:
-		_q_label.modulate.a = 1.0 if q_ready >= 1.0 else 0.55
+		_q_label.add_theme_color_override("font_color", Color(0.95, 0.85, 0.3) if q_ready >= 1.0 else Color(0.4, 0.4, 0.4))
 	if _e_label:
-		_e_label.modulate.a = 1.0 if e_ready >= 1.0 else 0.55
+		_e_label.add_theme_color_override("font_color", Color(0.95, 0.85, 0.3) if e_ready >= 1.0 else Color(0.4, 0.4, 0.4))
 
 func set_skill_manager(sm: Node) -> void:
 	_skill_manager = sm

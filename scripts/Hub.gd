@@ -180,6 +180,22 @@ func _show_forest_prompt() -> void:
 	)
 	hbox.add_child(no)
 
+	var sep2 := Control.new()
+	sep2.custom_minimum_size = Vector2(0, 8)
+	sep2.process_mode = Node.PROCESS_MODE_ALWAYS
+	vbox.add_child(sep2)
+
+	var nj_btn := _make_button("Novo In\u00edcio", 18, 200)
+	nj_btn.add_theme_color_override("font_color", Color(0.6, 0.9, 0.5))
+	nj_btn.pressed.connect(func():
+		ProgressionManager.reset_level()
+		ProgressionManager.data.current_area = 1
+		ProgressionManager.save()
+		get_tree().paused = false
+		TransitionScreen.fade_to("res://scenes/World.tscn")
+	)
+	vbox.add_child(nj_btn)
+
 # ── UI helpers ────────────────────────────────────────────────────────────────
 
 func _make_overlay(layer_val: int, node_name: String) -> CanvasLayer:

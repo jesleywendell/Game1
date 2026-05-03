@@ -2,8 +2,8 @@ extends Node2D
 
 const TILE_W := 32
 const TILE_H := 32
-const MAP_COLS := 132
-const MAP_ROWS := 102
+const MAP_COLS := 120
+const MAP_ROWS := 120
 const TILE_PATH := "res://assets/isometric tileset/isometric tileset/separated images/tile_%03d.png"
 const NEW_ASSETS := "res://assets/"
 const CURSED_ASSETS := "res://assets/Free-Cursed-Land-Top-Down-Pixel-Art-Tileset/PNG/Objects_separetely/"

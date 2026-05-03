@@ -118,3 +118,13 @@ func get_current_area() -> int:
 func advance_area() -> void:
 	data.current_area += 1
 	save()
+
+func reset_level() -> void:
+	data.level = 1
+	data.current_xp = 0.0
+	data.attack_damage_upgrades = 0
+	data.skill_damage_upgrades = 0
+	data.speed_upgrades = 0
+	data.max_health_upgrades = 0
+	save()
+	xp_changed.emit(data.current_xp, xp_required(data.level))
