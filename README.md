@@ -18,7 +18,7 @@ Action RPG 2D com perspectiva isométrica, combate em tempo real com lança e ha
 | Pausar | ESC |
 
 ## Estrutura
-- `scripts/` — código GDScript (25 scripts)
+- `scripts/` — código GDScript (25 scripts, Hub.gd com ~730 linhas — hub AAA completo)
 - `scenes/` — cenas Godot (.tscn)
 - `assets/` — sprites, tiles, UI, áudio
 - `docs/` — especificações e planos de implementação

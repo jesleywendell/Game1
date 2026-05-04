@@ -36,7 +36,15 @@ World.tscn           → World.gd
   ├── MapGenerator   → MapGenerator.gd
   ├── Player         → Player.gd, SkillManager.gd
   └── HUD            → HUD.gd
-Hub.tscn             → Hub.gd
+Hub.tscn             → Hub.gd (726 lines)
+  ├── CanvasLayer(-10)→ void mist background shader
+  ├── CanvasModulate  → Color(0.22, 0.24, 0.28)
+  ├── Tilemap         → procedural 20×14 with diagonal corner cuts
+  ├── Player          → Player.gd + attached PointLight2D (cool blue, 115px)
+  ├── Merchant camp   → 7 props + PointLight2D (amber, 140px) + 4 LightOccluder2D
+  ├── Portal          → Large building + red particles + pulsing PointLight2D (red, 179px)
+  ├── Atmosphere      → CanvasLayer(1): ambient + vignette(0.48); embers(z=10); fog(z=-8)
+  └── Foreground      → CanvasLayer(20): gradient shadow + 2 bushes + 3 edge silhouettes
 Credits.tscn         → Credits.gd
 PauseMenu.tscn       → PauseMenu.gd
 HUD.tscn             → HUD.gd (standalone scene)
@@ -72,7 +80,7 @@ Skeleton and GalinhaPodre have no .tscn — they are spawned purely via script b
 | `scripts/UpgradePanel.gd` | CanvasLayer — level-up upgrade selection with fragment costs, disables unaffordable buttons |
 | `scripts/ArenaUpgradePanel.gd` | CanvasLayer — area-clear upgrade card picker (4 cards: damage/health/speed/dash) |
 | `scripts/PauseMenu.gd` | CanvasLayer — ESC pause menu with resume/config/main menu, image-based buttons |
-| `scripts/Hub.gd` | Node2D — isometric hub map with NPC "Mercador" (fragment display), exit portal to World |
+| `scripts/Hub.gd` | Node2D — AAA dark fantasy hub (726 lines): asymmetric layout, 3 PointLight2D + 4 occluders, merchant camp (7 props), bone clusters, edge vegetation, foreground framing, broken diagonal path, prox-labels "Mercador"/"O Caminho" |
 | `scripts/MainMenu.gd` | Node2D — main menu with fade transitions to World/Credits/Quit |
 | `scripts/Credits.gd` | Node2D — image-based credits screen |
 | `scripts/TutorialManager.gd` | Node — 5-step first-run tutorial overlay (WASD → space → mouse → Q → E) |
@@ -184,11 +192,28 @@ Skeleton and GalinhaPodre have no .tscn — they are spawned purely via script b
 - 4 upgrade cards: +10% damage, +15 HP max, +10% speed, -0.2s dash cooldown
 - Temporary buffs (lost on death/area transition)
 
-### Hub (Hub.gd)
-- Node2D — isometric hub map with decorative buildings, tombstones, vegetation
-- NPC "Mercador" — displays current soul fragment balance
-- Exit portal transitions to World (combat arena)
-- No shop — upgrades happen exclusively via level-up fragment system
+### Hub (Hub.gd, 726 lines)
+- Node2D — AAA dark fantasy corrupted sanctuary, matching main menu's oppressive red/black tone
+- **Layout:** Asymmetric triangular flow: Merchant(2,4)→Player(7,8)→Portal(16,3)
+- **Path:** Broken diagonal dirt path (9 PATH_SEGMENTS) curving from player toward portal
+- **Palette:** Cool moss tones — grass (0.25/0.35/0.28), rocks (0.20/0.18/0.28), path (0.42/0.40/0.35)
+- **CanvasModulate:** Color(0.22, 0.24, 0.28) — all readability from lighting
+- **Lighting:** 3 PointLight2D with shared GradientTexture2D (FILL_RADIAL, 256×256)
+  - Player: cool blue (0.55/0.7/1.0), energy 1.4, scale 1.8 (~115px radius) — guarantees readability
+  - Merchant: warm amber (1.0/0.55/0.2), energy 1.2, scale 2.2 (~140px) — fragile safe zone
+  - Portal: pulsing red (0.95/0.1/0.05), base 1.0, `0.6+sin(t*2)*0.8`, scale 2.8 (~179px) — primary objective
+- **Occlusion:** 4 LightOccluder2D (diamond OccluderPolygon2D) on camp buildings/tombstones
+- **Merchant camp:** 7 props clustered around NPC — 2 small buildings, 2 tombstones, 3 ground relics (candles)
+- **Bone clusters:** 7 Bones_shadow1 sprites in 2 groups (cols 10-12/rows 6-7 and cols 3-5/rows 11-12), dark-mod, z=-9
+- **Edge vegetation:** 6 vegetacao_estruturas sprites at border, scale 1.2×, z=-8, very dark
+- **Foreground overlay (CanvasLayer 20):** gradient shadow (bottom 35%→42% black) + 2 bush silhouettes (bottom corners) + 3 off-screen building frames (top-left, top-right, right-side, 2.8-3.5× scale, near-black)
+- **Portal:** Large building (edificacoes_grandes_001, scale 1.4, red-modulated) + CPUParticles2D (20 red sphere particles, z=3) + "O Caminho" proximity label
+- **Camera:** position_smoothing_enabled + ±3px sine idle drift (`sin(t*0.3)*3, cos(t*0.4)*3`)
+- **Atmosphere stack:** 45 embers (alpha 0.32, z=10) + 80 ground fog (alpha 0.12, z=-8) + vignette (alpha 0.48) + ambient wash (alpha 0.08) + animated void mist background (noise shader, CanvasLayer -10)
+- **UI:** Gothic fragment HUD plaque (StyleBoxFlat, asymmetric border), `◆ ◆ ◆` accents on all prompts, `_make_button()` with thick top border + gold text/hover
+- **Interaction:** Proximity-based labels (Mercador/O Caminho visible only when `_player_near_*==true`), Area2D zones: Merchant 80×64, Portal 96×64
+- **Forest prompt:** "Seguir pelo Caminho?" (amber-red) + "A redenção exige sacrifício." + "Recomeçar Jornada" (resets level + area→1)
+- **Mercador prompt:** Fragment balance display + "O comércio da alma nunca cessa." + Voltar button
 
 ### Tutorial (TutorialManager.gd)
 - Node — first-run tutorial overlay for new players
@@ -347,6 +372,7 @@ assets/audio/                                          — EMPTY (no .ogg files 
 ---
 
 ## Workflow Convention
+
 
 - **OpenCode** handles all routine implementation (scripts, boilerplate, well-specified features)
 - **Claude** handles architecture, complex logic, reviewing OpenCode output, giving OpenCode prompts
