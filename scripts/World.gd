@@ -244,43 +244,130 @@ func _unhandled_input(event: InputEvent) -> void:
 			_wave_manager.debug_skip_to_wave(4)
 
 func _setup_atmosphere() -> void:
+	var area := ProgressionManager.get_current_area()
+
 	var atm := CanvasLayer.new()
 	atm.layer = 1
+
+	# Phase-specific ambient wash
 	var ambient := ColorRect.new()
-	ambient.color = Color(0.0, 0.02, 0.0, 0.20)
 	ambient.anchors_preset = Control.PRESET_FULL_RECT
+	match area:
+		1: ambient.color = Color(0.00, 0.03, 0.00, 0.18)  # Forest: deep moss green
+		2: ambient.color = Color(0.05, 0.01, 0.00, 0.26)  # Cursed: sickly blood-dark
+		3: ambient.color = Color(0.00, 0.00, 0.05, 0.22)  # Undead: cold grave blue
+		_: ambient.color = Color(0.00, 0.02, 0.00, 0.20)
 	atm.add_child(ambient)
+
+	# Phase-specific vignette (heavier in cursed/undead)
+	var vig_strength: float
+	match area:
+		1: vig_strength = 0.72
+		2: vig_strength = 0.92
+		3: vig_strength = 0.84
+		_: vig_strength = 0.78
 	var vignette_rect := ColorRect.new()
 	vignette_rect.anchors_preset = Control.PRESET_FULL_RECT
-	var shader := Shader.new()
-	shader.code = """
-shader_type canvas_item;
-void fragment() {
-	vec2 uv = UV - vec2(0.5);
-	float dist = length(uv) * 1.8;
-	float v = smoothstep(0.25, 1.0, dist);
-	COLOR = vec4(0.0, 0.0, 0.0, v * 0.78);
-}
-"""
-	var mat := ShaderMaterial.new()
-	mat.shader = shader
-	vignette_rect.material = mat
+	var vshader := Shader.new()
+	vshader.code = (
+		"shader_type canvas_item;\n"
+		+ "uniform float strength : hint_range(0.0,1.5) = 0.78;\n"
+		+ "void fragment() {\n"
+		+ "\tvec2 uv = UV - vec2(0.5);\n"
+		+ "\tfloat dist = length(uv) * 1.8;\n"
+		+ "\tfloat v = smoothstep(0.25, 1.0, dist);\n"
+		+ "\tCOLOR = vec4(0.0, 0.0, 0.0, v * strength);\n"
+		+ "}"
+	)
+	var vmat := ShaderMaterial.new()
+	vmat.shader = vshader
+	vmat.set_shader_parameter("strength", vig_strength)
+	vignette_rect.material = vmat
 	atm.add_child(vignette_rect)
 	add_child(atm)
+
+	# Primary ground fog layer — phase-specific color and density
 	var fog := CPUParticles2D.new()
 	fog.emitting = true
-	fog.amount = 60
-	fog.lifetime = 6.0
 	fog.one_shot = false
 	fog.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	fog.emission_rect_extents = Vector2(700.0, 280.0)
-	fog.direction = Vector2(0.3, -1.0)
-	fog.spread = 30.0
-	fog.gravity = Vector2(0.0, -4.0)
-	fog.initial_velocity_min = 4.0
-	fog.initial_velocity_max = 10.0
-	fog.scale_amount_min = 18.0
-	fog.scale_amount_max = 36.0
-	fog.color = Color(0.45, 0.6, 0.45, 0.07)
-	fog.z_index = 5
+	fog.emission_rect_extents = Vector2(760.0, 300.0)
+	fog.direction = Vector2(0.25, -1.0)
+	fog.spread = 28.0
+	fog.gravity = Vector2(0.0, -3.0)
+	fog.z_index = -8
+	match area:
+		1:  # Forest: slow green wisps, moderate
+			fog.amount = 65
+			fog.lifetime = 7.0
+			fog.initial_velocity_min = 4.0
+			fog.initial_velocity_max = 11.0
+			fog.scale_amount_min = 20.0
+			fog.scale_amount_max = 40.0
+			fog.color = Color(0.32, 0.52, 0.30, 0.08)
+		2:  # Cursed: thick toxic brownish-red miasma
+			fog.amount = 100
+			fog.lifetime = 9.0
+			fog.initial_velocity_min = 2.0
+			fog.initial_velocity_max = 7.0
+			fog.scale_amount_min = 26.0
+			fog.scale_amount_max = 52.0
+			fog.color = Color(0.52, 0.20, 0.10, 0.12)
+			fog.direction = Vector2(0.10, -1.0)
+		3:  # Undead: cold blue-grey spectral mist
+			fog.amount = 80
+			fog.lifetime = 10.0
+			fog.initial_velocity_min = 3.0
+			fog.initial_velocity_max = 8.0
+			fog.scale_amount_min = 22.0
+			fog.scale_amount_max = 46.0
+			fog.color = Color(0.22, 0.30, 0.50, 0.09)
+		_:
+			fog.amount = 60
+			fog.lifetime = 6.0
+			fog.initial_velocity_min = 4.0
+			fog.initial_velocity_max = 10.0
+			fog.scale_amount_min = 18.0
+			fog.scale_amount_max = 36.0
+			fog.color = Color(0.45, 0.60, 0.45, 0.07)
 	add_child(fog)
+
+	# Phase 2: rising toxic spore particles (small, upward drift)
+	if area == 2:
+		var spores := CPUParticles2D.new()
+		spores.emitting = true
+		spores.amount = 40
+		spores.lifetime = 4.5
+		spores.one_shot = false
+		spores.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+		spores.emission_rect_extents = Vector2(800.0, 320.0)
+		spores.direction = Vector2(0.05, -1.0)
+		spores.spread = 12.0
+		spores.gravity = Vector2(0.0, -10.0)
+		spores.initial_velocity_min = 8.0
+		spores.initial_velocity_max = 20.0
+		spores.scale_amount_min = 2.0
+		spores.scale_amount_max = 5.0
+		spores.color = Color(0.62, 0.42, 0.08, 0.28)
+		spores.z_index = 6
+		add_child(spores)
+
+	# Phase 3: spectral ember wisps (like Hub embers, blue-white)
+	if area == 3:
+		var wisps := CPUParticles2D.new()
+		wisps.emitting = true
+		wisps.amount = 35
+		wisps.lifetime = 5.5
+		wisps.one_shot = false
+		wisps.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+		wisps.emission_rect_extents = Vector2(800.0, 320.0)
+		wisps.direction = Vector2(0.15, -1.0)
+		wisps.spread = 22.0
+		wisps.gravity = Vector2(0.0, -7.0)
+		wisps.initial_velocity_min = 6.0
+		wisps.initial_velocity_max = 16.0
+		wisps.scale_amount_min = 2.0
+		wisps.scale_amount_max = 5.0
+		wisps.color = Color(0.38, 0.52, 0.92, 0.32)
+		wisps.z_index = 6
+		add_child(wisps)
