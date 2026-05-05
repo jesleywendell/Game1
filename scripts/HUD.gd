@@ -265,69 +265,94 @@ func _update_hearts(current: float, maximum: float) -> void:
 			_heart_labels[i].add_theme_color_override("font_color", Color(0.35, 0.10, 0.10, 0.6))
 
 func _setup_skill_bars(margin: int, vp: Vector2) -> void:
-	var bar_w := 80
-	var bar_h := 16
-	var panel_w := bar_w + 16
-	var panel_h := bar_h + 34
-	var group_gap := 16
-	var total_w := panel_w * 2 + group_gap
-	var base_y := int(vp.y) - margin - panel_h - 12
+	# hudbar_skills.png: 1672x941 RGB (no alpha channel — white bg removed via shader)
+	# expand_mode = EXPAND_IGNORE_SIZE is mandatory: without it TextureRect locks to
+	# the texture's natural resolution (512px icons / 1672px hudbar) ignoring .size
+	const HB_ASPECT := 1672.0 / 941.0
+	# Slot fractions (adjust if icons appear offset after testing)
+	const SLOT_L_X  := 0.210   # left edge of Q slot
+	const SLOT_R_X  := 0.570   # left edge of E slot
+	const SLOT_TOP  := 0.210   # slot top edge
+	const SLOT_W    := 0.220   # slot width
+	const SLOT_H    := 0.580   # slot height
 
-	var sep := HSeparator.new()
-	sep.add_theme_color_override("color", Color(0.75, 0.63, 0.19, 0.6))
-	sep.custom_minimum_size = Vector2(total_w, 2)
-	sep.position = Vector2(margin, base_y - 14)
-	sep.size = Vector2(total_w, 2)
-	add_child(sep)
+	var bar_h  := 8
+	var key_h  := 16
+	var hb_w   := int(vp.x * 0.18)
+	var hb_h   := int(round(float(hb_w) / HB_ASPECT))
+	var base_y := int(vp.y) - margin - bar_h - key_h - 4 - hb_h
+
+	# Shader: removes only the near-white RGB background (lum > 0.88)
+	# Does NOT remove dark elements — keeps skulls, gems, gold border intact
+	var shader := Shader.new()
+	shader.code = "shader_type canvas_item;\nvoid fragment() {\n\tvec4 col = texture(TEXTURE, UV);\n\tif (dot(col.rgb, vec3(0.299, 0.587, 0.114)) > 0.88) col.a = 0.0;\n\tCOLOR = col;\n}"
+	var hb_mat := ShaderMaterial.new()
+	hb_mat.shader = shader
+
+	var hudbar_tex: Texture2D = load("res://assets/skills/hudbar/hudbar_skills.png")
+	var icon_paths := [
+		"res://assets/skills/craftpix_skills/PNG/27.png",
+		"res://assets/skills/craftpix_skills/PNG/11.png"
+	]
+	var keys := ["Q", "E"]
+	var slot_x_fracs := [SLOT_L_X, SLOT_R_X]
 
 	for i in 2:
-		var key := "Q" if i == 0 else "E"
-		var x := margin + i * (panel_w + group_gap)
+		var slot_x   := margin + int(float(hb_w) * slot_x_fracs[i])
+		var slot_y   := base_y + int(float(hb_h) * SLOT_TOP)
+		var slot_w   := int(float(hb_w) * SLOT_W)
+		var slot_h   := int(float(hb_h) * SLOT_H)
+		var icon_size: int = int(float(min(slot_w, slot_h)) * 0.82)
+		var icon_x   := slot_x + (slot_w - icon_size) / 2
+		var icon_y   := slot_y + (slot_h - icon_size) / 2
 
-		var panel := Panel.new()
-		var panel_sb := StyleBoxFlat.new()
-		panel_sb.bg_color = Color(0.10, 0.10, 0.18, 0.85)
-		panel_sb.border_color = Color(0.75, 0.63, 0.19, 0.6)
-		panel_sb.border_width_left = 1
-		panel_sb.border_width_right = 1
-		panel_sb.border_width_top = 1
-		panel_sb.border_width_bottom = 1
-		panel_sb.corner_radius_top_left = 4
-		panel_sb.corner_radius_top_right = 4
-		panel_sb.corner_radius_bottom_left = 4
-		panel_sb.corner_radius_bottom_right = 4
-		panel.add_theme_stylebox_override("panel", panel_sb)
-		panel.position = Vector2(x, base_y)
-		panel.size = Vector2(panel_w, panel_h)
-		add_child(panel)
+		# Icons at z=3 — drawn ON TOP of the dark slot fill (which is part of hudbar at z=2)
+		var icon_tex: Texture2D = load(icon_paths[i])
+		var icon_rect := TextureRect.new()
+		icon_rect.texture = icon_tex
+		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon_rect.stretch_mode = TextureRect.STRETCH_SCALE
+		icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon_rect.z_index = 3
+		add_child(icon_rect)
+		icon_rect.position = Vector2(icon_x, icon_y)
+		icon_rect.size = Vector2(icon_size, icon_size)
 
 		var key_lbl := Label.new()
-		key_lbl.text = key
-		key_lbl.add_theme_font_size_override("font_size", 18)
+		key_lbl.text = keys[i]
+		key_lbl.add_theme_font_size_override("font_size", 13)
 		key_lbl.add_theme_color_override("font_color", Color(0.95, 0.85, 0.3))
 		key_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		key_lbl.position = Vector2(0, 4)
-		key_lbl.size = Vector2(panel_w, 22)
-		panel.add_child(key_lbl)
+		key_lbl.z_index = 4
+		add_child(key_lbl)
+		key_lbl.position = Vector2(slot_x, base_y + hb_h + 2)
+		key_lbl.size = Vector2(slot_w, key_h)
 
 		var bar := ProgressBar.new()
 		bar.min_value = 0.0
 		bar.max_value = 100.0
 		bar.value = 100.0
 		bar.show_percentage = false
-		bar.custom_minimum_size = Vector2(bar_w, bar_h)
-		bar.position = Vector2(8, 28)
-		bar.size = Vector2(bar_w, bar_h)
+		bar.z_index = 4
+		add_child(bar)
+		bar.position = Vector2(slot_x, base_y + hb_h + key_h + 2)
+		bar.size = Vector2(slot_w, bar_h)
 
 		var fill_sb := StyleBoxFlat.new()
-		fill_sb.bg_color = Color(0.75, 0.55, 0.15)
+		fill_sb.bg_color = Color(0.85, 0.70, 0.15, 0.85)
+		fill_sb.content_margin_left = 0.0
+		fill_sb.content_margin_right = 0.0
+		fill_sb.content_margin_top = 0.0
+		fill_sb.content_margin_bottom = 0.0
 		bar.add_theme_stylebox_override("fill", fill_sb)
 
 		var bg_sb := StyleBoxFlat.new()
-		bg_sb.bg_color = Color(0.05, 0.05, 0.08, 0.7)
+		bg_sb.bg_color = Color(0.05, 0.05, 0.08, 0.6)
+		bg_sb.content_margin_left = 0.0
+		bg_sb.content_margin_right = 0.0
+		bg_sb.content_margin_top = 0.0
+		bg_sb.content_margin_bottom = 0.0
 		bar.add_theme_stylebox_override("background", bg_sb)
-
-		panel.add_child(bar)
 
 		if i == 0:
 			_q_bar = bar
@@ -335,6 +360,18 @@ func _setup_skill_bars(margin: int, vp: Vector2) -> void:
 		else:
 			_e_bar = bar
 			_e_label = key_lbl
+
+	# Hudbar at z=2 — dark slot fill visible behind icons (z=3), frame decorations visible everywhere
+	var hb_rect := TextureRect.new()
+	hb_rect.texture = hudbar_tex
+	hb_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	hb_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	hb_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hb_rect.z_index = 2
+	hb_rect.material = hb_mat
+	add_child(hb_rect)
+	hb_rect.position = Vector2(margin, base_y)
+	hb_rect.size = Vector2(hb_w, hb_h)
 
 func _setup_fragments_label(margin: int, vp: Vector2) -> void:
 	_fragments_label = Label.new()
