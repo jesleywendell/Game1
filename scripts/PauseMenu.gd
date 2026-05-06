@@ -91,12 +91,14 @@ func _btn(path: String, x: float, y: float, w: float, h: float, cb: Callable) ->
 	btn.process_mode = Node.PROCESS_MODE_ALWAYS
 	btn.pressed.connect(cb)
 	btn.mouse_entered.connect(func():
+		AudioManager.play_btn_hover()
 		create_tween().tween_property(btn, "modulate", Color(1.3, 1.15, 0.85), 0.10)
 	)
 	btn.mouse_exited.connect(func():
 		create_tween().tween_property(btn, "modulate", Color(1.0, 1.0, 1.0), 0.12)
 	)
 	btn.button_down.connect(func():
+		AudioManager.play_btn_click()
 		create_tween().tween_property(btn, "scale", Vector2(0.96, 0.96), 0.06).set_ease(Tween.EASE_OUT)
 	)
 	btn.button_up.connect(func():

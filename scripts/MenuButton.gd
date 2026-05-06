@@ -16,12 +16,14 @@ func _ready() -> void:
 	button_up.connect(_on_release)
 
 func _on_hover() -> void:
+	AudioManager.play_btn_hover()
 	_animate(Vector2(1.05, 1.05), Color(1.3, 1.3, 1.3), 0.12)
 
 func _on_unhover() -> void:
 	_animate(Vector2(1.0, 1.0), Color(1.0, 1.0, 1.0), 0.10)
 
 func _on_press() -> void:
+	AudioManager.play_btn_click()
 	_kill_tween()
 	_tween = create_tween()
 	_tween.tween_property(self, "scale", Vector2(0.95, 0.95), 0.05).set_ease(Tween.EASE_OUT)

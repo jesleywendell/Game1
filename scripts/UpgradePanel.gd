@@ -73,6 +73,8 @@ func _build_ui() -> void:
 	close_btn.text = "Fechar"
 	close_btn.modulate = Color(0.7, 0.7, 0.7)
 	close_btn.process_mode = Node.PROCESS_MODE_ALWAYS
+	close_btn.mouse_entered.connect(AudioManager.play_btn_hover)
+	close_btn.pressed.connect(AudioManager.play_btn_click)
 	close_btn.pressed.connect(_close)
 	vbox.add_child(close_btn)
 
@@ -80,6 +82,8 @@ func _make_upgrade_button(upgrade: Dictionary) -> Dictionary:
 	var btn := Button.new()
 	btn.custom_minimum_size = Vector2(480, 80)
 	btn.process_mode = Node.PROCESS_MODE_ALWAYS
+	btn.mouse_entered.connect(AudioManager.play_btn_hover)
+	btn.pressed.connect(AudioManager.play_btn_click)
 	btn.pressed.connect(_on_upgrade_chosen.bind(upgrade["key"]))
 
 	var normal_sb := StyleBoxFlat.new()
@@ -204,6 +208,8 @@ func _build_tutorial() -> Control:
 	dismiss_btn.add_theme_font_size_override("font_size", 14)
 	dismiss_btn.modulate = Color(0.85, 0.72, 0.30)
 	dismiss_btn.process_mode = Node.PROCESS_MODE_ALWAYS
+	dismiss_btn.mouse_entered.connect(AudioManager.play_btn_hover)
+	dismiss_btn.pressed.connect(AudioManager.play_btn_click)
 	dismiss_btn.pressed.connect(func():
 		_tutorial_dismissed = true
 		panel.hide()
