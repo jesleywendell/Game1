@@ -265,31 +265,30 @@ func _update_hearts(current: float, maximum: float) -> void:
 			_heart_labels[i].add_theme_color_override("font_color", Color(0.35, 0.10, 0.10, 0.6))
 
 func _setup_skill_bars(margin: int, vp: Vector2) -> void:
-	# hudbar_skills.png: 1672x941 RGB (no alpha channel — white bg removed via shader)
+	# hudbar_skills_01.png: 1672x941 RGB (white bg removed via shader)
 	# expand_mode = EXPAND_IGNORE_SIZE is mandatory: without it TextureRect locks to
 	# the texture's natural resolution (512px icons / 1672px hudbar) ignoring .size
 	const HB_ASPECT := 1672.0 / 941.0
-	# Slot fractions (adjust if icons appear offset after testing)
-	const SLOT_L_X  := 0.210   # left edge of Q slot
-	const SLOT_R_X  := 0.570   # left edge of E slot
-	const SLOT_TOP  := 0.210   # slot top edge
-	const SLOT_W    := 0.220   # slot width
-	const SLOT_H    := 0.580   # slot height
+	# Slot fractions measured from pixel analysis of hudbar_skills_01.png
+	const SLOT_L_X  := 0.295   # inner left edge of Q slot
+	const SLOT_R_X  := 0.535   # inner left edge of E slot
+	const SLOT_TOP  := 0.285   # slot top edge (top gold border)
+	const SLOT_W    := 0.175   # slot interior width
+	const SLOT_H    := 0.350   # slot interior height (between gold borders)
 
-	var bar_h  := 8
-	var key_h  := 16
-	var hb_w   := int(vp.x * 0.18)
+	var bar_h  := 5
+	var key_h  := 14
+	var hb_w   := int(vp.x * 0.15)
 	var hb_h   := int(round(float(hb_w) / HB_ASPECT))
-	var base_y := int(vp.y) - margin - bar_h - key_h - 4 - hb_h
+	var base_y := int(vp.y) - margin - bar_h - key_h - 4 - hb_h  # bottom-left
 
-	# Shader: removes only the near-white RGB background (lum > 0.88)
-	# Does NOT remove dark elements — keeps skulls, gems, gold border intact
+	# Shader: removes near-white RGB background (lum > 0.88), keeps dark frame intact
 	var shader := Shader.new()
 	shader.code = "shader_type canvas_item;\nvoid fragment() {\n\tvec4 col = texture(TEXTURE, UV);\n\tif (dot(col.rgb, vec3(0.299, 0.587, 0.114)) > 0.88) col.a = 0.0;\n\tCOLOR = col;\n}"
 	var hb_mat := ShaderMaterial.new()
 	hb_mat.shader = shader
 
-	var hudbar_tex: Texture2D = load("res://assets/skills/hudbar/hudbar_skills.png")
+	var hudbar_tex: Texture2D = load("res://assets/skills/hudbar/hudbar_skills_01.png")
 	var icon_paths := [
 		"res://assets/skills/craftpix_skills/PNG/27.png",
 		"res://assets/skills/craftpix_skills/PNG/11.png"
@@ -320,12 +319,12 @@ func _setup_skill_bars(margin: int, vp: Vector2) -> void:
 
 		var key_lbl := Label.new()
 		key_lbl.text = keys[i]
-		key_lbl.add_theme_font_size_override("font_size", 13)
+		key_lbl.add_theme_font_size_override("font_size", 11)
 		key_lbl.add_theme_color_override("font_color", Color(0.95, 0.85, 0.3))
 		key_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		key_lbl.z_index = 4
 		add_child(key_lbl)
-		key_lbl.position = Vector2(slot_x, base_y + hb_h + 2)
+		key_lbl.position = Vector2(slot_x, base_y + hb_h + 1)
 		key_lbl.size = Vector2(slot_w, key_h)
 
 		var bar := ProgressBar.new()
@@ -335,7 +334,7 @@ func _setup_skill_bars(margin: int, vp: Vector2) -> void:
 		bar.show_percentage = false
 		bar.z_index = 4
 		add_child(bar)
-		bar.position = Vector2(slot_x, base_y + hb_h + key_h + 2)
+		bar.position = Vector2(slot_x, base_y + hb_h + key_h + 1)
 		bar.size = Vector2(slot_w, bar_h)
 
 		var fill_sb := StyleBoxFlat.new()

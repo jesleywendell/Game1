@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://xafoy7cvlljd"
-path="res://.godot/imported/hudbar_skills.png-22bbe05445bb4f356235f0f7c4ebcf13.ctex"
+uid="uid://bq8y3fv2mchk7"
+path="res://.godot/imported/hudbar_skills_01.png-f34f2a341f0953167835e0236f654560.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/skills/hudbar/hudbar_skills.png"
-dest_files=["res://.godot/imported/hudbar_skills.png-22bbe05445bb4f356235f0f7c4ebcf13.ctex"]
+source_file="res://assets/skills/hudbar/hudbar_skills_01.png"
+dest_files=["res://.godot/imported/hudbar_skills_01.png-f34f2a341f0953167835e0236f654560.ctex"]
 
 [params]
 
