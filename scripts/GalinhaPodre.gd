@@ -4,18 +4,19 @@ var MAX_HEALTH      := 20.0
 var DAMAGE          := 8.0
 var xp_reward       := 15.0
 var DAMAGE_INTERVAL := 1.0
+var MOVE_SPEED      := 160.0
 
-var MOVE_SPEED   := 160.0
 const DETECT_RANGE := 220.0
 const STOP_RANGE   := 12.0
+
 const BAR_W := 60.0
 const BAR_H := 6.0
-const BAR_Y := 20.0
+const BAR_Y := -35.0
 
-var current_health := MAX_HEALTH
-var is_dead := false
-var _damage_timer := 0.0
-var _player: Node = null
+var current_health  := MAX_HEALTH
+var is_dead         := false
+var _damage_timer   := 0.0
+var _player: Node   = null
 var _frenzy_applied := false
 var _col_shape: CollisionShape2D
 
@@ -33,17 +34,20 @@ func _physics_process(delta: float) -> void:
 	var player_node: Node2D = get_tree().get_first_node_in_group("player")
 	if player_node == null or is_dead:
 		return
+
 	var dist := global_position.distance_to(player_node.global_position)
 	if dist > STOP_RANGE:
 		var dir := (player_node.global_position - global_position).normalized()
 		position += dir * MOVE_SPEED * delta
+
+	z_index = int(global_position.y / 8.0)
+
 	if _player == null:
 		return
 	_damage_timer -= delta
 	if _damage_timer <= 0.0:
 		_damage_timer = DAMAGE_INTERVAL
 		_player.take_damage(DAMAGE, Vector2.ZERO)
-	z_index = int(global_position.y / 8.0)
 
 func take_damage(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
 	if is_dead:
@@ -96,7 +100,8 @@ func apply_frenzy() -> void:
 	modulate = Color(1.3, 0.3, 0.2, 1.0)
 
 func _draw() -> void:
-	draw_circle(Vector2.ZERO, 12.0, Color(0.30, 0.65, 0.20, 1.0))
+	if not is_dead:
+		draw_circle(Vector2.ZERO, 12.0, Color(0.1, 0.8, 0.2, 0.9))
 	if is_dead or current_health >= MAX_HEALTH:
 		return
 	var x := -BAR_W / 2.0
