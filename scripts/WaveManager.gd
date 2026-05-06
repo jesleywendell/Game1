@@ -21,14 +21,14 @@ const ARENA_TOTAL := 3
 const ARENA_DURATION := 90.0
 
 const SPAWN_COORDS := [
-	Vector2i(24, 24),  Vector2i(105, 24),
-	Vector2i(24, 75),  Vector2i(105, 75),
-	Vector2i(42, 30),  Vector2i(87, 30),
-	Vector2i(30, 54),  Vector2i(99, 54),
-	Vector2i(36, 78),  Vector2i(90, 78),
-	Vector2i(60, 21),  Vector2i(66, 84),
-	Vector2i(21, 42),  Vector2i(108, 60),
-	Vector2i(48, 18),  Vector2i(81, 81),
+	Vector2i(50, 30), Vector2i(40, 40),
+	Vector2i(45, 35), Vector2i(60, 20),
+	Vector2i(80, 80), Vector2i(90, 70),
+	Vector2i(75, 85), Vector2i(85, 75),
+	Vector2i(40, 80), Vector2i(35, 80),
+	Vector2i(40, 85), Vector2i(35, 85),
+	Vector2i(80, 40), Vector2i(85, 40),
+	Vector2i(80, 35), Vector2i(85, 35),
 ]
 
 var current_wave := 0
@@ -78,7 +78,7 @@ func start_next_wave() -> void:
 
 func _spawn_boar(index: int, multiplier: float) -> void:
 	var boar = BOAR_SCENE.instantiate()
-	var coord: Vector2i = SPAWN_COORDS[index % SPAWN_COORDS.size()]
+	var coord: Vector2i = SPAWN_COORDS[randi() % SPAWN_COORDS.size()]
 	var offset := Vector2(randf_range(-20.0, 20.0), randf_range(-10.0, 10.0))
 	boar.position = Vector2((coord.x - coord.y) * 16.0, (coord.x + coord.y) * 8.0) + offset
 	boar.MAX_HEALTH = BASE_HEALTH * multiplier
@@ -91,7 +91,7 @@ func _spawn_boar(index: int, multiplier: float) -> void:
 
 func _spawn_knight(index: int, multiplier: float) -> void:
 	var knight = KNIGHT_SCENE.instantiate()
-	var coord: Vector2i = SPAWN_COORDS[index % SPAWN_COORDS.size()]
+	var coord: Vector2i = SPAWN_COORDS[randi() % SPAWN_COORDS.size()]
 	var offset := Vector2(randf_range(-20.0, 20.0), randf_range(-10.0, 10.0))
 	knight.position = Vector2((coord.x - coord.y) * 16.0, (coord.x + coord.y) * 8.0) + offset
 	knight.MAX_HEALTH = 150.0 * multiplier
@@ -104,7 +104,7 @@ func _spawn_knight(index: int, multiplier: float) -> void:
 
 func _spawn_skeleton(index: int, multiplier: float) -> void:
 	var skeleton = SKELETON_SCRIPT.new()
-	var coord: Vector2i = SPAWN_COORDS[index % SPAWN_COORDS.size()]
+	var coord: Vector2i = SPAWN_COORDS[randi() % SPAWN_COORDS.size()]
 	var offset := Vector2(randf_range(-20.0, 20.0), randf_range(-10.0, 10.0))
 	skeleton.position = Vector2((coord.x - coord.y) * 16.0, (coord.x + coord.y) * 8.0) + offset
 	skeleton.MAX_HEALTH = 30.0 * multiplier
@@ -117,7 +117,7 @@ func _spawn_skeleton(index: int, multiplier: float) -> void:
 
 func _spawn_galinha(index: int, multiplier: float) -> void:
 	var galinha = GALINHA_SCRIPT.new()
-	var coord: Vector2i = SPAWN_COORDS[index % SPAWN_COORDS.size()]
+	var coord: Vector2i = SPAWN_COORDS[randi() % SPAWN_COORDS.size()]
 	var offset := Vector2(randf_range(-20.0, 20.0), randf_range(-10.0, 10.0))
 	galinha.position = Vector2((coord.x - coord.y) * 16.0, (coord.x + coord.y) * 8.0) + offset
 	galinha.MAX_HEALTH = 20.0 * multiplier
@@ -151,7 +151,7 @@ func _spawn_boss() -> void:
 	var area       := ProgressionManager.get_current_area()
 	var area_scale := 1.0 + (area - 1) * 0.5
 	var boss = KNIGHT_SCENE.instantiate()
-	boss.position = Vector2(0.0, -40.0)
+	boss.position = Vector2(0.0, 800.0)
 	boss.MAX_HEALTH = 250.0 * area_scale
 	boss.current_health = 250.0 * area_scale
 	boss.DAMAGE = 30.0 * area_scale

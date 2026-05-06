@@ -40,7 +40,6 @@ func _ready() -> void:
 	_wave_manager.boss_spawned.connect(_on_boss_spawned)
 	_wave_manager.timer_tick.connect(hud.on_timer_tick)
 	_wave_manager.frenzy_started.connect(hud.on_frenzy_started)
-	_wave_manager.start_next_wave()
 	var radar: Node = load("res://scripts/EnemyRadar.gd").new()
 	radar.name = "EnemyRadar"
 	add_child(radar)
@@ -49,7 +48,15 @@ func _ready() -> void:
 	_run_start_time = Time.get_ticks_msec()
 	_fragments_at_start = ProgressionManager.get_fragments()
 	_wave_manager.enemy_killed.connect(func(): _enemies_killed += 1)
+	call_deferred("_center_player")
 	player.died.connect(_on_player_died)
+
+func _center_player() -> void:
+	var p := get_node_or_null("Player")
+	if p:
+		p.position = Vector2(0, 960)
+	await get_tree().create_timer(0.6).timeout
+	_wave_manager.start_next_wave()
 
 func _start_tutorial_if_needed() -> void:
 	if ProgressionManager.data.level > 1:

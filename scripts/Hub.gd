@@ -55,6 +55,7 @@ func _ready() -> void:
 			img.set_pixel(x, y, Color(1.0, 1.0, 1.0, a))
 	_light_texture = ImageTexture.create_from_image(img)
 	_build_hub_map()
+	_build_border_colliders()
 	_spawn_player()
 	_spawn_exit()
 	_setup_foreground()
@@ -302,6 +303,33 @@ func _build_hub_map() -> void:
 			spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 			add_child(spr)
 
+func _build_border_colliders() -> void:
+	var verts: Array[Vector2] = [
+		Vector2(80, 40),    # tile (5,0)   — top
+		Vector2(384, 192),  # tile (24,0)  — top-right start
+		Vector2(384, 272),  # tile (29,5)  — right top
+		Vector2(240, 344),  # tile (29,14) — right bottom
+		Vector2(80, 344),   # tile (24,19) — bottom-right
+		Vector2(-208, 200), # tile (6,19)  — bottom-left
+		Vector2(-208, 104), # tile (0,13)  — left bottom
+		Vector2(-80, 40),   # tile (0,5)   — left top
+	]
+	for i in verts.size():
+		var a: Vector2 = verts[i]
+		var b: Vector2 = verts[(i + 1) % verts.size()]
+		var mid: Vector2 = (a + b) / 2.0
+		var seg_len: float = a.distance_to(b)
+		var angle: float = (b - a).angle()
+		var body := StaticBody2D.new()
+		body.position = mid
+		var shape := CollisionShape2D.new()
+		var rect := RectangleShape2D.new()
+		rect.size = Vector2(seg_len, 12)
+		shape.shape = rect
+		shape.rotation = angle
+		body.add_child(shape)
+		add_child(body)
+
 # ── Player ────────────────────────────────────────────────────────────────────
 
 # ── Exit zone ─────────────────────────────────────────────────────────────────
@@ -383,30 +411,23 @@ func _build_hud() -> void:
 	cl.layer = 3
 	add_child(cl)
 	var panel := Panel.new()
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.04, 0.04, 0.06, 0.95)
-	sb.border_color = Color(0.85, 0.65, 0.15, 0.8)
-	sb.border_width_left   = 3
-	sb.border_width_right  = 3
-	sb.border_width_top    = 3
-	sb.border_width_bottom = 3
-	sb.corner_radius_top_left     = 0
-	sb.corner_radius_top_right    = 0
-	sb.corner_radius_bottom_left  = 0
-	sb.corner_radius_bottom_right = 0
-	panel.add_theme_stylebox_override("panel", sb)
-	panel.position = Vector2(12, 12)
-	panel.size = Vector2(190, 42)
+	panel.position = Vector2(16, 16)
+	panel.size = Vector2(190, 56)
 	cl.add_child(panel)
+	var vbox := VBoxContainer.new()
+	vbox.position = Vector2(0, 0)
+	vbox.size = Vector2(190, 56)
+	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	panel.add_child(vbox)
 	_frag_label = Label.new()
 	_frag_label.add_theme_font_size_override("font_size", 19)
 	_frag_label.add_theme_color_override("font_color", Color(0.95, 0.85, 0.3))
-	_frag_label.position = Vector2(24, 23)
-	cl.add_child(_frag_label)
+	_frag_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(_frag_label)
 
 func _refresh_hud() -> void:
 	if _frag_label:
-		_frag_label.text = "✦ %d Fragmentos" % ProgressionManager.get_fragments()
+		_frag_label.text = "◆  %d  Fragmentos" % ProgressionManager.get_fragments()
 
 # ── Foreground overlay ──────────────────────────────────────────────────────────
 
