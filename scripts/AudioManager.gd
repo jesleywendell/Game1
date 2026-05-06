@@ -1,7 +1,8 @@
 extends Node
 
 const SFX_PATHS := {
-	"attack":        "res://assets/audio/sfx_attack.ogg",
+	"attack":        "res://assets/audio/jogador/attack/punch_2.wav",
+	"enemy_attack":  "res://assets/audio/enemies/attack/slap.wav",
 	"dash":          "res://assets/audio/sfx_dash.ogg",
 	"damage_player": "res://assets/audio/sfx_damage_player.ogg",
 	"player_die":    "res://assets/audio/sfx_player_die.ogg",
@@ -11,10 +12,13 @@ const SFX_PATHS := {
 	"enemy_die":     "res://assets/audio/sfx_enemy_die.ogg",
 	"boss_phase2":   "res://assets/audio/sfx_boss_phase2.ogg",
 }
+const BTN_SFX_PATH := "res://assets/audio/botoes/hover_click/sound_ex_machina_Buttons-Stone-Button.wav"
 const AMBIENT_PATH := "res://assets/audio/ambient_forest.ogg"
 
 var _players: Dictionary = {}
 var _ambient: AudioStreamPlayer
+var _btn_hover: AudioStreamPlayer
+var _btn_click: AudioStreamPlayer
 
 func _ready() -> void:
 	for key in SFX_PATHS:
@@ -32,6 +36,19 @@ func _ready() -> void:
 		_ambient.stream = load(AMBIENT_PATH)
 	add_child(_ambient)
 
+	var btn_stream: AudioStream = load(BTN_SFX_PATH) if ResourceLoader.exists(BTN_SFX_PATH) else null
+	_btn_hover = AudioStreamPlayer.new()
+	_btn_hover.name = "btn_hover"
+	_btn_hover.stream = btn_stream
+	_btn_hover.volume_db = -12.0
+	add_child(_btn_hover)
+
+	_btn_click = AudioStreamPlayer.new()
+	_btn_click.name = "btn_click"
+	_btn_click.stream = btn_stream
+	_btn_click.volume_db = -6.0
+	add_child(_btn_click)
+
 func play_sfx(sfx_key: String) -> void:
 	if not _players.has(sfx_key):
 		return
@@ -40,6 +57,18 @@ func play_sfx(sfx_key: String) -> void:
 		return
 	p.stop()
 	p.play()
+
+func play_btn_hover() -> void:
+	if _btn_hover.stream == null:
+		return
+	_btn_hover.stop()
+	_btn_hover.play()
+
+func play_btn_click() -> void:
+	if _btn_click.stream == null:
+		return
+	_btn_click.stop()
+	_btn_click.play()
 
 func play_ambient() -> void:
 	if _ambient.stream == null:
