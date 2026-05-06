@@ -11,6 +11,8 @@ var _title: Label
 var _frag_label: Label
 var _buttons: Array[Dictionary] = []
 var _pending_levelups: int = 0
+var _tutorial_panel: Control
+var _tutorial_dismissed: bool = false
 
 func _ready() -> void:
 	layer = 20
@@ -56,6 +58,9 @@ func _build_ui() -> void:
 	var sep := Control.new()
 	sep.custom_minimum_size = Vector2(0, 12)
 	vbox.add_child(sep)
+
+	_tutorial_panel = _build_tutorial()
+	vbox.add_child(_tutorial_panel)
 
 	for upgrade in UPGRADES:
 		var entry: Dictionary = _make_upgrade_button(upgrade)
@@ -145,10 +150,78 @@ func _make_upgrade_button(upgrade: Dictionary) -> Dictionary:
 
 	return {"btn": btn, "title_lbl": title_lbl, "desc_lbl": desc_lbl, "cost_lbl": cost_lbl}
 
+func _build_tutorial() -> Control:
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(480, 0)
+	panel.process_mode = Node.PROCESS_MODE_ALWAYS
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.10, 0.08, 0.04, 0.92)
+	style.border_color = Color(0.85, 0.60, 0.10, 0.75)
+	style.border_width_top = 3
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	panel.add_theme_stylebox_override("panel", style)
+
+	var margin := MarginContainer.new()
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 14)
+	panel.add_child(margin)
+
+	var inner := VBoxContainer.new()
+	inner.add_theme_constant_override("separation", 8)
+	margin.add_child(inner)
+
+	var header := Label.new()
+	header.text = "◆ COMO FUNCIONAM OS UPGRADES ◆"
+	header.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	header.add_theme_font_size_override("font_size", 15)
+	header.modulate = Color(0.95, 0.78, 0.20)
+	inner.add_child(header)
+
+	var line1 := Label.new()
+	line1.text = "• Você pode comprar mais de um upgrade antes de fechar o painel — não há limite por nível."
+	line1.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	line1.add_theme_font_size_override("font_size", 14)
+	line1.modulate = Color(0.90, 0.90, 0.90)
+	inner.add_child(line1)
+
+	var line2 := Label.new()
+	line2.text = "• Atenção: cada upgrade fica progressivamente mais caro. Não gaste todos os seus Fragmentos de Alma de uma vez — você vai precisar deles."
+	line2.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	line2.add_theme_font_size_override("font_size", 14)
+	line2.modulate = Color(0.95, 0.55, 0.25)
+	inner.add_child(line2)
+
+	var dismiss_btn := Button.new()
+	dismiss_btn.text = "Entendido"
+	dismiss_btn.custom_minimum_size = Vector2(140, 34)
+	dismiss_btn.add_theme_font_size_override("font_size", 14)
+	dismiss_btn.modulate = Color(0.85, 0.72, 0.30)
+	dismiss_btn.process_mode = Node.PROCESS_MODE_ALWAYS
+	dismiss_btn.pressed.connect(func():
+		_tutorial_dismissed = true
+		panel.hide()
+	)
+	var btn_center := CenterContainer.new()
+	btn_center.add_child(dismiss_btn)
+	inner.add_child(btn_center)
+
+	panel.hide()
+	return panel
+
 func _refresh() -> void:
 	_title.text = "NIVEL %d" % ProgressionManager.data.level
 	var frags := ProgressionManager.get_fragments()
 	_frag_label.text = "Fragmentos da Alma: %d" % frags
+
+	if not _tutorial_dismissed and ProgressionManager.data.level == 2:
+		_tutorial_panel.show()
 
 	for i in _buttons.size():
 		var key: String = UPGRADES[i]["key"]
@@ -166,13 +239,10 @@ func _refresh() -> void:
 			entry["desc_lbl"].modulate = Color(0.8, 0.25, 0.25)
 			entry["cost_lbl"].modulate = Color(0.8, 0.25, 0.25)
 
-func queue_level_up() -> void:
-	_pending_levelups += 1
-
-func show_queued() -> void:
-	if _pending_levelups <= 0 or visible:
+func on_leveled_up() -> void:
+	if visible:
+		_pending_levelups += 1
 		return
-	_pending_levelups = 0
 	_refresh()
 	get_tree().paused = true
 	show()
@@ -182,6 +252,10 @@ func _on_upgrade_chosen(attribute: String) -> void:
 	_refresh()
 
 func _close() -> void:
-	_pending_levelups = 0
 	get_tree().paused = false
 	hide()
+	if _pending_levelups > 0:
+		_pending_levelups -= 1
+		_refresh()
+		get_tree().paused = true
+		show()
