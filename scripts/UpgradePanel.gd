@@ -170,21 +170,18 @@ func queue_level_up() -> void:
 	_pending_levelups += 1
 
 func show_queued() -> void:
-	if _pending_levelups <= 0:
+	if _pending_levelups <= 0 or visible:
 		return
-	_pending_levelups -= 1
+	_pending_levelups = 0
 	_refresh()
 	get_tree().paused = true
 	show()
 
 func _on_upgrade_chosen(attribute: String) -> void:
 	ProgressionManager.apply_upgrade(attribute)
-	if _pending_levelups > 0:
-		_pending_levelups -= 1
-		_refresh()
-	else:
-		_close()
+	_refresh()
 
 func _close() -> void:
+	_pending_levelups = 0
 	get_tree().paused = false
 	hide()
