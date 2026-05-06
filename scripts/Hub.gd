@@ -62,6 +62,19 @@ func _ready() -> void:
 	_build_hud()
 	ProgressionManager.fragments_changed.connect(func(_n): _refresh_hud())
 	_refresh_hud()
+	_play_ambient()
+
+func _play_ambient() -> void:
+	const PATH := "res://assets/audio/hub/sound_bottom/2. Shadowforge Convergence.wav"
+	if not ResourceLoader.exists(PATH):
+		return
+	var player := AudioStreamPlayer.new()
+	player.stream = load(PATH)
+	player.volume_db = -8.0
+	player.bus = "Master"
+	add_child(player)
+	player.finished.connect(player.play)
+	player.play()
 
 func _process(delta: float) -> void:
 	_time_accum += delta
@@ -410,20 +423,32 @@ func _build_hud() -> void:
 	var cl := CanvasLayer.new()
 	cl.layer = 3
 	add_child(cl)
-	var panel := Panel.new()
+
+	var panel := PanelContainer.new()
 	panel.position = Vector2(16, 16)
-	panel.size = Vector2(190, 56)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.06, 0.04, 0.02, 0.72)
+	style.border_color = Color(0.85, 0.70, 0.20, 0.80)
+	style.border_width_top = 2
+	style.border_width_bottom = 2
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.corner_radius_top_left = 6
+	style.corner_radius_top_right = 6
+	style.corner_radius_bottom_left = 6
+	style.corner_radius_bottom_right = 6
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
+	panel.add_theme_stylebox_override("panel", style)
 	cl.add_child(panel)
-	var vbox := VBoxContainer.new()
-	vbox.position = Vector2(0, 0)
-	vbox.size = Vector2(190, 56)
-	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	panel.add_child(vbox)
+
 	_frag_label = Label.new()
 	_frag_label.add_theme_font_size_override("font_size", 19)
 	_frag_label.add_theme_color_override("font_color", Color(0.95, 0.85, 0.3))
 	_frag_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(_frag_label)
+	panel.add_child(_frag_label)
 
 func _refresh_hud() -> void:
 	if _frag_label:
