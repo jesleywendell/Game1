@@ -1,6 +1,7 @@
 extends Node2D
 
 const PLAYER_SCENE := preload("res://scenes/Player.tscn")
+const PAUSE_MENU   := preload("res://scenes/PauseMenu.tscn")
 
 const TILE_W    := 32
 const TILE_H    := 32
@@ -37,6 +38,7 @@ func _is_corner_cut(col: int, row: int) -> bool:
 		col + (19 - row) < 6)
 
 func _ready() -> void:
+	add_child(PAUSE_MENU.instantiate())
 	_setup_atmosphere()
 	var cm := CanvasModulate.new()
 	cm.color = Color(0.22, 0.24, 0.28, 1.0)
