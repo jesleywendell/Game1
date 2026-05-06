@@ -126,5 +126,7 @@ func reset_level() -> void:
 	data.skill_damage_upgrades = 0
 	data.speed_upgrades = 0
 	data.max_health_upgrades = 0
+	data.soul_fragments = 0
 	save()
 	xp_changed.emit(data.current_xp, xp_required(data.level))
+	fragments_changed.emit(0)
