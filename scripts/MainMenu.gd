@@ -20,6 +20,20 @@ func _ready() -> void:
 	modal_bg.gui_input.connect(_on_modal_bg_input)
 	modal_overlay.hide()
 	_fade_in()
+	_play_music()
+
+func _play_music() -> void:
+	const MUSIC_PATH := "res://assets/audio/mainMenu/gregoryallenbrown-creeping-dark-ambience-189391.wav"
+	if not ResourceLoader.exists(MUSIC_PATH):
+		push_warning("MainMenu: música não encontrada em " + MUSIC_PATH)
+		return
+	var player := AudioStreamPlayer.new()
+	player.stream = load(MUSIC_PATH)
+	player.volume_db = -6.0
+	player.bus = "Master"
+	add_child(player)
+	player.finished.connect(player.play)
+	player.play()
 
 func _on_modal_bg_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
