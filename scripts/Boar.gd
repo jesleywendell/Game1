@@ -44,6 +44,8 @@ func _setup_animation() -> void:
 	sprite.play("idle")
 
 func _physics_process(delta: float) -> void:
+	if not is_inside_tree():
+		return
 	var player_node: Node2D = get_tree().get_first_node_in_group("player")
 	if player_node == null or is_dead:
 		return
@@ -58,6 +60,7 @@ func _physics_process(delta: float) -> void:
 	_damage_timer -= delta
 	if _damage_timer <= 0.0:
 		_damage_timer = DAMAGE_INTERVAL
+		AudioManager.play_sfx("enemy_attack")
 		_player.take_damage(DAMAGE, Vector2.ZERO)
 	z_index = int(global_position.y / 8.0)
 

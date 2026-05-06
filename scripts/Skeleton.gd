@@ -74,6 +74,8 @@ func _setup_spear() -> void:
 	add_child(_spear)
 
 func _physics_process(delta: float) -> void:
+	if not is_inside_tree():
+		return
 	var player_node: Node2D = get_tree().get_first_node_in_group("player")
 	if player_node == null or is_dead:
 		return
@@ -113,6 +115,7 @@ func _physics_process(delta: float) -> void:
 	_damage_timer -= delta
 	if _damage_timer <= 0.0:
 		_damage_timer = DAMAGE_INTERVAL
+		AudioManager.play_sfx("enemy_attack")
 		_player.take_damage(DAMAGE, Vector2.ZERO)
 
 func _resolve_facing(d: Vector2) -> String:
@@ -156,7 +159,7 @@ func _die() -> void:
 	JuiceManager.spawn_blood(global_position, get_parent())
 	JuiceManager.apply_hitstop(0.08)
 	JuiceManager.add_trauma(0.3)
-	var player_node := get_tree().get_first_node_in_group("player")
+	var player_node := get_tree().get_first_node_in_group("player") if is_inside_tree() else null
 	if player_node and player_node.has_method("heal"):
 		player_node.heal(3.0)
 	var tween := create_tween()

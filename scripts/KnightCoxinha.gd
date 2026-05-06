@@ -88,7 +88,7 @@ func _anim_for_dir(dir: Vector2) -> String:
 	return SECTOR_ANIMS[int((deg + 22.5) / 45.0) % 8]
 
 func _physics_process(delta: float) -> void:
-	if is_dead:
+	if is_dead or not is_inside_tree():
 		return
 
 	var player_node: Node2D = get_tree().get_first_node_in_group("player")
@@ -137,6 +137,7 @@ func _physics_process(delta: float) -> void:
 		_damage_timer -= delta
 		if _damage_timer <= 0.0:
 			_damage_timer = DAMAGE_INTERVAL
+			AudioManager.play_sfx("enemy_attack")
 			_player.take_damage(DAMAGE, Vector2.ZERO)
 
 	z_index = int(global_position.y / 8.0)
@@ -159,6 +160,7 @@ func _start_skill(player_node: Node2D) -> void:
 func _check_charge_hit(player_node: Node2D) -> void:
 	if global_position.distance_to(player_node.global_position) < CHARGE_HIT_DIST:
 		if player_node.has_method("take_damage"):
+			AudioManager.play_sfx("enemy_attack")
 			player_node.take_damage(SKILL_DAMAGE, _charge_dir)
 		_end_skill()
 
@@ -212,7 +214,7 @@ func _die() -> void:
 	JuiceManager.spawn_blood(global_position, get_parent())
 	JuiceManager.apply_hitstop(0.1)
 	JuiceManager.add_trauma(0.35)
-	var player_node := get_tree().get_first_node_in_group("player")
+	var player_node := get_tree().get_first_node_in_group("player") if is_inside_tree() else null
 	if player_node and player_node.has_method("heal"):
 		player_node.heal(15.0 if is_boss else 5.0)
 	var tween := create_tween()
