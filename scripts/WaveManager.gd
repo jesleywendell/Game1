@@ -189,7 +189,7 @@ func debug_skip_to_wave(target_wave: int) -> void:
 
 func _on_boss_died() -> void:
 	_boss_alive = false
-	var player := get_tree().get_first_node_in_group("player")
+	var player := get_tree().get_first_node_in_group("player") if is_inside_tree() else null
 	if player == null or player.is_dead:
 		return
 	area_cleared.emit()
