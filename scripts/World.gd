@@ -11,6 +11,7 @@ var _enemies_killed: int = 0
 var _run_start_time: int = 0
 var _upgrade_panel: CanvasLayer
 var _fragments_at_start: int = 0
+var _light_texture: Texture2D
 
 func _ready() -> void:
 	hud.layer = 2
@@ -21,8 +22,11 @@ func _ready() -> void:
 	var upgrade_panel := UPGRADE_PANEL.instantiate()
 	add_child(upgrade_panel)
 	_upgrade_panel = upgrade_panel
-	ProgressionManager.leveled_up.connect(func(_lvl): _upgrade_panel.queue_level_up())
+	ProgressionManager.leveled_up.connect(func(_lvl): _upgrade_panel.on_leveled_up())
+	_light_texture = _make_light_texture()
 	_setup_atmosphere()
+	_setup_player_light()
+	_setup_camera_limits()
 
 	_wave_manager = load("res://scripts/WaveManager.gd").new()
 	_wave_manager.name = "WaveManager"
@@ -37,6 +41,9 @@ func _ready() -> void:
 	_wave_manager.timer_tick.connect(hud.on_timer_tick)
 	_wave_manager.frenzy_started.connect(hud.on_frenzy_started)
 	_wave_manager.start_next_wave()
+	var radar: Node = load("res://scripts/EnemyRadar.gd").new()
+	radar.name = "EnemyRadar"
+	add_child(radar)
 	_start_tutorial_if_needed()
 	AudioManager.play_ambient()
 	_run_start_time = Time.get_ticks_msec()
@@ -58,7 +65,6 @@ func _on_wave_started(wave_number: int) -> void:
 func _on_wave_cleared(wave_number: int) -> void:
 	if wave_number >= 3:
 		return
-	_upgrade_panel.show_queued()
 	await get_tree().create_timer(2.0).timeout
 	_wave_manager.start_next_wave()
 
@@ -243,8 +249,72 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.is_action_pressed("debug_boss"):
 			_wave_manager.debug_skip_to_wave(4)
 
+func _make_light_texture() -> Texture2D:
+	var img := Image.create(128, 128, false, Image.FORMAT_RGBA8)
+	for y in range(128):
+		for x in range(128):
+			var d := Vector2(float(x) - 64.0, float(y) - 64.0).length() / 64.0
+			var a := 0.0
+			if d < 1.0:
+				var t := 1.0 - d
+				t = t * t * (3.0 - 2.0 * t)
+				a = t * t
+			img.set_pixel(x, y, Color(1.0, 1.0, 1.0, a))
+	return ImageTexture.create_from_image(img)
+
+func _setup_player_light() -> void:
+	var area := ProgressionManager.get_current_area()
+	var light := PointLight2D.new()
+	light.texture = _light_texture
+	light.texture_scale = 2.6
+	light.energy = 1.5
+	light.range_z_min = -10
+	light.range_z_max = 100
+	light.z_index = 5
+	light.position = Vector2(0, -16)
+	match area:
+		1: light.color = Color(0.60, 0.88, 0.55)   # forest: warm green
+		2: light.color = Color(0.90, 0.45, 0.20)   # cursed: amber-blood
+		3: light.color = Color(0.50, 0.62, 1.00)   # undead: cold spectral blue
+		_: light.color = Color(0.60, 0.75, 1.00)
+	player.add_child(light)
+
+func _setup_camera_limits() -> void:
+	var cam := player.get_node_or_null("Camera2D") as Camera2D
+	if cam == null:
+		return
+	# MapGenerator: 120×120 tiles, iso = ((col-row)*16, (col+row)*8)
+	# Extremes: x in [-1904, 1904], y in [0, 1904]
+	var pad := 96
+	cam.limit_left   = -1904 - pad
+	cam.limit_right  =  1904 + pad
+	cam.limit_top    =     0 - pad
+	cam.limit_bottom =  1904 + pad
+
 func _setup_atmosphere() -> void:
 	var area := ProgressionManager.get_current_area()
+
+	# Void background — covers engine's gray beyond map tiles
+	var void_layer := CanvasLayer.new()
+	void_layer.layer = -10
+	add_child(void_layer)
+	var void_bg := ColorRect.new()
+	void_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	match area:
+		1: void_bg.color = Color(0.03, 0.05, 0.03)
+		2: void_bg.color = Color(0.06, 0.02, 0.01)
+		3: void_bg.color = Color(0.01, 0.01, 0.05)
+		_: void_bg.color = Color(0.03, 0.04, 0.03)
+	void_layer.add_child(void_bg)
+
+	# CanvasModulate darkens the full scene so PointLight2D creates torch contrast
+	var cm := CanvasModulate.new()
+	match area:
+		1: cm.color = Color(0.22, 0.26, 0.22)   # dark forest green
+		2: cm.color = Color(0.26, 0.19, 0.16)   # dark blood-rust
+		3: cm.color = Color(0.16, 0.18, 0.28)   # cold grave blue
+		_: cm.color = Color(0.22, 0.24, 0.24)
+	add_child(cm)
 
 	var atm := CanvasLayer.new()
 	atm.layer = 1
