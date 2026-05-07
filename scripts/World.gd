@@ -45,6 +45,7 @@ func _ready() -> void:
 	add_child(radar)
 	_start_tutorial_if_needed()
 	AudioManager.play_ambient()
+	tree_exiting.connect(AudioManager.stop_music)
 	_run_start_time = Time.get_ticks_msec()
 	_fragments_at_start = ProgressionManager.get_fragments()
 	_wave_manager.enemy_killed.connect(func(): _enemies_killed += 1)
@@ -66,8 +67,9 @@ func _start_tutorial_if_needed() -> void:
 	add_child(tm)
 	tm.init(player)
 
-func _on_wave_started(wave_number: int) -> void:
-	print("Wave %d started" % wave_number)
+func _on_wave_started(_wave_number: int) -> void:
+	AudioManager.stop_ambient()
+	AudioManager.play_wave_music()
 
 func _on_wave_cleared(wave_number: int) -> void:
 	if wave_number >= 3:
@@ -204,6 +206,7 @@ func _go_btn(parent: Control, path: String, x: float, y: float, w: float, h: flo
 
 func _on_boss_spawned() -> void:
 	hud.show_boss_label()
+	AudioManager.play_boss_music()
 
 func _on_area_cleared() -> void:
 	if player.is_dead:

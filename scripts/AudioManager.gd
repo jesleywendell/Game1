@@ -12,13 +12,17 @@ const SFX_PATHS := {
 	"enemy_die":     "res://assets/audio/sfx_enemy_die.ogg",
 	"boss_phase2":   "res://assets/audio/sfx_boss_phase2.ogg",
 }
-const BTN_SFX_PATH := "res://assets/audio/botoes/hover_click/sound_ex_machina_Buttons-Stone-Button.wav"
-const AMBIENT_PATH := "res://assets/audio/ambient_forest.ogg"
+const BTN_SFX_PATH    := "res://assets/audio/botoes/hover_click/sound_ex_machina_Buttons-Stone-Button.wav"
+const AMBIENT_PATH    := "res://assets/audio/ambient_forest.ogg"
+const WAVE_MUSIC_PATH := "res://assets/audio/waves/LVS04_10_Battlefield_bpm180_loop.wav"
+const BOSS_MUSIC_PATH := "res://assets/audio/waves/wave_boss/01-DavidKBD-Purgatory-Pack-Purgatory.wav"
 
 var _players: Dictionary = {}
 var _ambient: AudioStreamPlayer
 var _btn_hover: AudioStreamPlayer
 var _btn_click: AudioStreamPlayer
+var _music: AudioStreamPlayer
+var _current_music_path := ""
 
 func _ready() -> void:
 	for key in SFX_PATHS:
@@ -49,6 +53,11 @@ func _ready() -> void:
 	_btn_click.volume_db = -6.0
 	add_child(_btn_click)
 
+	_music = AudioStreamPlayer.new()
+	_music.name = "music"
+	_music.volume_db = -8.0
+	add_child(_music)
+
 func play_sfx(sfx_key: String) -> void:
 	if not _players.has(sfx_key):
 		return
@@ -78,3 +87,25 @@ func play_ambient() -> void:
 
 func stop_ambient() -> void:
 	_ambient.stop()
+
+func play_wave_music() -> void:
+	_play_music(WAVE_MUSIC_PATH)
+
+func play_boss_music() -> void:
+	_play_music(BOSS_MUSIC_PATH)
+
+func stop_music() -> void:
+	_music.stop()
+	_current_music_path = ""
+
+func _play_music(path: String) -> void:
+	if _current_music_path == path and _music.playing:
+		return
+	if not ResourceLoader.exists(path):
+		return
+	_current_music_path = path
+	var stream := load(path)
+	if stream is AudioStreamWAV:
+		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
+	_music.stream = stream
+	_music.play()
