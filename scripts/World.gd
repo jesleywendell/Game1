@@ -105,7 +105,7 @@ func _show_game_over_overlay(wave_reached: int = 0) -> void:
 	root.add_child(ov)
 
 	var vp   := get_viewport().get_visible_rect().size
-	var bg_img := Image.load_from_file("res://assets/game_over/background/background_game_over.png")
+	var bg_img := Image.load_from_file("res://assets/game_over/background/background_game_over_01.png")
 
 	# Background — 42 % of viewport width, square (720×720 source)
 	var pw := vp.x * 0.42
