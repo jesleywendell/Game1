@@ -113,10 +113,7 @@ func _play_music(path: String) -> void:
 	_music.stop()
 	_current_music_path = path
 	if stream is AudioStreamWAV:
-		var wav := (stream as AudioStreamWAV).duplicate() as AudioStreamWAV
-		wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		_music.stream = wav
-	else:
-		_music.stream = stream
+		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
+	_music.stream = stream
 	_music.play()
 	print("[AudioManager] play() chamado, playing=", _music.playing)
