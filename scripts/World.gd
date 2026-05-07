@@ -93,89 +93,114 @@ func _show_game_over_overlay(wave_reached: int = 0) -> void:
 	add_child(cl)
 
 	var root := Control.new()
-	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.process_mode = Node.PROCESS_MODE_ALWAYS
 	root.modulate.a = 0.0
 	cl.add_child(root)
 
-	# Card container — defines the background size and anchors all content to it
-	var card := Control.new()
-	card.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	card.custom_minimum_size = Vector2(520, 520)
-	root.add_child(card)
+	var ov := ColorRect.new()
+	ov.color = Color(0.0, 0.0, 0.0, 0.72)
+	ov.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ov.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(ov)
+
+	var vp   := get_viewport().get_visible_rect().size
+	var bg_img := Image.load_from_file("res://assets/game_over/background/background_game_over.png")
+
+	# Background — 42 % of viewport width, square (720×720 source)
+	var pw := vp.x * 0.42
+	var ph := pw
+	var px := (vp.x - pw) * 0.5
+	var py := (vp.y - ph) * 0.5
 
 	var bg := TextureRect.new()
-	bg.texture = load("res://assets/game_over/background/background_game_over.png")
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	card.add_child(bg)
+	bg.texture = ImageTexture.create_from_image(bg_img)
+	bg.stretch_mode = TextureRect.STRETCH_SCALE
+	bg.set_position(Vector2(px, py))
+	bg.set_size(Vector2(pw, ph))
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(bg)
 
-	var vbox := VBoxContainer.new()
-	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_theme_constant_override("separation", 16)
-	vbox.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	vbox.custom_minimum_size = Vector2(320, 0)
-	card.add_child(vbox)
+	# Stats labels — centered in upper half of the background card
+	var sv_w := pw * 0.78
+	var sv_x := px + (pw - sv_w) * 0.5
+	var sv_y := py + ph * 0.42
+	var stats_box := VBoxContainer.new()
+	stats_box.add_theme_constant_override("separation", 8)
+	stats_box.set_position(Vector2(sv_x, sv_y))
+	stats_box.custom_minimum_size = Vector2(sv_w, 0)
+	root.add_child(stats_box)
 
-	var stats: Array[String] = [
+	var stats_lines: Array[String] = [
 		"Inimigos derrotados: %d"  % _enemies_killed,
 		"Fragmentos coletados: %d" % maxi(0, frags_earned),
 		"Tempo: %dm %02ds"         % [minutes, seconds],
 		"Onda alcançada: %d"       % wave_reached,
 	]
-	for s in stats:
+	for s in stats_lines:
 		var lbl := Label.new()
 		lbl.text = s
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lbl.add_theme_font_size_override("font_size", 22)
+		lbl.add_theme_font_size_override("font_size", 18)
 		lbl.add_theme_color_override("font_color", Color(0.92, 0.88, 0.75))
 		lbl.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.8))
 		lbl.add_theme_constant_override("shadow_offset_x", 2)
 		lbl.add_theme_constant_override("shadow_offset_y", 2)
-		vbox.add_child(lbl)
+		stats_box.add_child(lbl)
 
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 20)
-	vbox.add_child(spacer)
+	# Buttons — stacked in lower portion of the background card
+	var bw   := pw * 0.60
+	var bx   := px + (pw - bw) * 0.5
+	var gap  := pw * 0.022
+	var by   := py + ph * 0.60
 
-	vbox.add_child(_make_go_button(
-		"res://assets/game_over/buttons/try_again.png",
+	var bh0 := bw * (200.0 / 1113.0)
+	_go_btn(root, "res://assets/game_over/buttons/try_again.png", bx, by, bw, bh0,
 		func():
 			ProgressionManager.reset_level()
 			get_tree().paused = false
-			get_tree().reload_current_scene()
-	))
-	vbox.add_child(_make_go_button(
-		"res://assets/game_over/buttons/return_hub.png",
-		func():
-			get_tree().paused = false
-			TransitionScreen.fade_to("res://scenes/Hub.tscn")
-	))
-	vbox.add_child(_make_go_button(
-		"res://assets/game_over/buttons/main_menu.png",
-		func():
-			get_tree().paused = false
-			TransitionScreen.fade_to("res://scenes/MainMenu.tscn")
-	))
+			get_tree().reload_current_scene())
+	by += bh0 + gap
 
-	var tween := root.create_tween()
+	var bh1 := bw * (205.0 / 1113.0)
+	_go_btn(root, "res://assets/game_over/buttons/return_hub.png", bx, by, bw, bh1,
+		func():
+			get_tree().paused = false
+			TransitionScreen.fade_to("res://scenes/Hub.tscn"))
+	by += bh1 + gap
+
+	var bh2 := bw * (210.0 / 1113.0)
+	_go_btn(root, "res://assets/game_over/buttons/main_menu.png", bx, by, bw, bh2,
+		func():
+			get_tree().paused = false
+			TransitionScreen.fade_to("res://scenes/MainMenu.tscn"))
+
+	var tween := cl.create_tween()
 	tween.tween_property(root, "modulate:a", 1.0, 0.6)
 
-func _make_go_button(texture_path: String, callback: Callable) -> TextureButton:
+func _go_btn(parent: Control, path: String, x: float, y: float, w: float, h: float, cb: Callable) -> void:
 	var btn := TextureButton.new()
-	btn.texture_normal = load(texture_path)
+	btn.texture_normal = ImageTexture.create_from_image(Image.load_from_file(path))
+	btn.stretch_mode = TextureButton.STRETCH_SCALE
 	btn.ignore_texture_size = true
-	btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
-	btn.custom_minimum_size = Vector2(280, 64)
-	btn.pressed.connect(callback)
+	btn.set_position(Vector2(x, y))
+	btn.set_size(Vector2(w, h))
+	btn.pivot_offset = Vector2(w, h) * 0.5
+	btn.process_mode = Node.PROCESS_MODE_ALWAYS
+	btn.pressed.connect(cb)
 	btn.mouse_entered.connect(func():
-		var t := btn.create_tween()
-		t.tween_property(btn, "modulate", Color(1.3, 1.3, 1.3), 0.1)
+		btn.create_tween().tween_property(btn, "modulate", Color(1.3, 1.15, 0.85), 0.10)
 	)
 	btn.mouse_exited.connect(func():
-		var t := btn.create_tween()
-		t.tween_property(btn, "modulate", Color.WHITE, 0.1)
+		btn.create_tween().tween_property(btn, "modulate", Color(1.0, 1.0, 1.0), 0.12)
 	)
-	return btn
+	btn.button_down.connect(func():
+		btn.create_tween().tween_property(btn, "scale", Vector2(0.96, 0.96), 0.06).set_ease(Tween.EASE_OUT)
+	)
+	btn.button_up.connect(func():
+		btn.create_tween().tween_property(btn, "scale", Vector2(1.0, 1.0), 0.10).set_ease(Tween.EASE_OUT)
+	)
+	parent.add_child(btn)
 
 func _on_boss_spawned() -> void:
 	hud.show_boss_label()
