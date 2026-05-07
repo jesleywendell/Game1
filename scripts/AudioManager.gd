@@ -56,6 +56,7 @@ func _ready() -> void:
 	_music = AudioStreamPlayer.new()
 	_music.name = "music"
 	_music.volume_db = -8.0
+	_music.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(_music)
 
 func play_sfx(sfx_key: String) -> void:
@@ -102,9 +103,14 @@ func _play_music(path: String) -> void:
 	if _current_music_path == path and _music.playing:
 		return
 	if not ResourceLoader.exists(path):
+		push_warning("AudioManager: arquivo de musica nao encontrado: " + path)
 		return
+	_music.stop()
 	_current_music_path = path
 	var stream := load(path)
+	if stream == null:
+		push_warning("AudioManager: falha ao carregar musica: " + path)
+		return
 	if stream is AudioStreamWAV:
 		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
 	_music.stream = stream
