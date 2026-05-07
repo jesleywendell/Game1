@@ -100,7 +100,7 @@ func _show_game_over_overlay(wave_reached: int = 0) -> void:
 	# Card container — defines the background size and anchors all content to it
 	var card := Control.new()
 	card.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	card.custom_minimum_size = Vector2(880, 550)
+	card.custom_minimum_size = Vector2(620, 400)
 	root.add_child(card)
 
 	var bg := TextureRect.new()
