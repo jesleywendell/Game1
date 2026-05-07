@@ -158,21 +158,18 @@ func _show_game_over_overlay(wave_reached: int = 0) -> void:
 	_go_btn(root, "res://assets/game_over/buttons/try_again.png", bx, by, bw, bh0,
 		func():
 			ProgressionManager.reset_level()
-			get_tree().paused = false
-			get_tree().reload_current_scene())
+			TransitionScreen.fade_to("res://scenes/World.tscn"))
 	by += bh0 + gap
 
 	var bh1 := bw * (205.0 / 1113.0)
 	_go_btn(root, "res://assets/game_over/buttons/return_hub.png", bx, by, bw, bh1,
 		func():
-			get_tree().paused = false
 			TransitionScreen.fade_to("res://scenes/Hub.tscn"))
 	by += bh1 + gap
 
 	var bh2 := bw * (210.0 / 1113.0)
 	_go_btn(root, "res://assets/game_over/buttons/main_menu.png", bx, by, bw, bh2,
 		func():
-			get_tree().paused = false
 			TransitionScreen.fade_to("res://scenes/MainMenu.tscn"))
 
 	var tween := cl.create_tween()
