@@ -109,7 +109,6 @@ func _show_game_over_overlay(wave_reached: int = 0) -> void:
 	vbox.add_theme_constant_override("separation", 16)
 	vbox.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	vbox.custom_minimum_size = Vector2(320, 0)
-	vbox.position += Vector2(0, 80)
 	root.add_child(vbox)
 
 	var stats: Array[String] = [
