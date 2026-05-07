@@ -100,11 +100,11 @@ func _show_game_over_overlay(wave_reached: int = 0) -> void:
 	# Card container — defines the background size and anchors all content to it
 	var card := Control.new()
 	card.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	card.custom_minimum_size = Vector2(620, 400)
+	card.custom_minimum_size = Vector2(520, 520)
 	root.add_child(card)
 
 	var bg := TextureRect.new()
-	bg.texture = load("res://assets/game_over/background/Tela_Gameover_Sembotoes.png")
+	bg.texture = load("res://assets/game_over/background/background_game_over.png")
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	card.add_child(bg)
