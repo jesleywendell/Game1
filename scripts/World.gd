@@ -154,16 +154,6 @@ func _show_game_over_overlay() -> void:
 	)
 	vbox.add_child(btn_retry)
 
-	var btn_hub := Button.new()
-	btn_hub.text = "Retornar ao Hub"
-	btn_hub.add_theme_font_size_override("font_size", 22)
-	btn_hub.custom_minimum_size = Vector2(260, 50)
-	btn_hub.pressed.connect(func():
-		get_tree().paused = false
-		TransitionScreen.fade_to("res://scenes/Hub.tscn")
-	)
-	vbox.add_child(btn_hub)
-
 	var btn_menu := Button.new()
 	btn_menu.text = "Menu Principal"
 	btn_menu.add_theme_font_size_override("font_size", 22)
@@ -181,65 +171,51 @@ func _on_area_cleared() -> void:
 	if player.is_dead:
 		return
 	ProgressionManager.advance_area()
-	await get_tree().create_timer(2.5).timeout
-	_show_victory_overlay()
+	await get_tree().create_timer(1.5).timeout
+	_spawn_exit_portal()
 
-func _show_victory_overlay() -> void:
-	get_tree().paused = true
-	var cl := CanvasLayer.new()
-	cl.layer = 30
-	cl.process_mode = Node.PROCESS_MODE_ALWAYS
-	add_child(cl)
+func _spawn_exit_portal() -> void:
+	var portal := Area2D.new()
+	portal.position = player.position + Vector2(80, 0)
+	portal.z_index = 1
+	add_child(portal)
 
-	var bg := ColorRect.new()
-	bg.color = Color(0.0, 0.0, 0.0, 0.75)
-	bg.anchors_preset = Control.PRESET_FULL_RECT
-	cl.add_child(bg)
+	var spr := Sprite2D.new()
+	spr.texture = load("res://assets/Free-Undead-Tileset-Top-Down-Pixel-Art/PNG/Objects_separately/Scull_door_shadow1.png")
+	spr.scale = Vector2(1.4, 1.4)
+	portal.add_child(spr)
 
-	var root_ctrl := Control.new()
-	root_ctrl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	cl.add_child(root_ctrl)
+	var particles := CPUParticles2D.new()
+	particles.emitting = true
+	particles.amount = 16
+	particles.lifetime = 1.2
+	particles.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	particles.emission_sphere_radius = 18.0
+	particles.direction = Vector2(0, -1)
+	particles.spread = 40.0
+	particles.gravity = Vector2(0, -20)
+	particles.initial_velocity_min = 8.0
+	particles.initial_velocity_max = 20.0
+	particles.color = Color(0.4, 0.0, 0.8, 0.7)
+	particles.z_index = 2
+	portal.add_child(particles)
 
-	var vbox := VBoxContainer.new()
-	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_theme_constant_override("separation", 24)
-	vbox.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	vbox.custom_minimum_size = Vector2(480, 0)
-	root_ctrl.add_child(vbox)
+	var shape := CircleShape2D.new()
+	shape.radius = 32.0
+	var cs := CollisionShape2D.new()
+	cs.shape = shape
+	portal.add_child(cs)
 
-	var title := Label.new()
-	title.text = "ÁREA %d VENCIDA" % (ProgressionManager.get_current_area() - 1)
-	title.add_theme_font_size_override("font_size", 48)
-	title.add_theme_color_override("font_color", Color(0.9, 0.75, 0.2, 1.0))
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(title)
-
-	var sub := Label.new()
-	sub.text = "Coxinha Knight derrotado"
-	sub.add_theme_font_size_override("font_size", 22)
-	sub.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8, 1.0))
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(sub)
-
-	var btn := Button.new()
-	btn.text = "Menu Principal"
-	btn.add_theme_font_size_override("font_size", 24)
-	btn.custom_minimum_size = Vector2(220, 52)
-	btn.pressed.connect(func():
-		get_tree().paused = false
-		TransitionScreen.fade_to("res://scenes/MainMenu.tscn")
+	portal.body_entered.connect(func(body):
+		if body == player:
+			portal.set_deferred("monitoring", false)
+			TransitionScreen.fade_to("res://scenes/World.tscn")
 	)
-	vbox.add_child(btn)
 
-	var btn_hub := Button.new()
-	btn_hub.text = "Retornar ao Hub"
-	btn_hub.add_theme_font_size_override("font_size", 22)
-	btn_hub.custom_minimum_size = Vector2(260, 50)
-	btn_hub.pressed.connect(func():
-		get_tree().paused = false
-		TransitionScreen.fade_to("res://scenes/Hub.tscn")
-	)
-	vbox.add_child(btn_hub)
+	# Animate portal appearing
+	portal.scale = Vector2.ZERO
+	var tw := create_tween()
+	tw.tween_property(portal, "scale", Vector2.ONE, 0.5).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_fullscreen"):
@@ -255,6 +231,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			_wave_manager.debug_skip_to_wave(3)
 		elif event.is_action_pressed("debug_boss"):
 			_wave_manager.debug_skip_to_wave(4)
+		elif event.is_action_pressed("debug_next_area"):
+			ProgressionManager.advance_area()
+			TransitionScreen.fade_to("res://scenes/World.tscn")
+		elif event.is_action_pressed("debug_prev_area"):
+			ProgressionManager.data.current_area = max(1, ProgressionManager.data.current_area - 1)
+			TransitionScreen.fade_to("res://scenes/World.tscn")
 
 func _make_light_texture() -> Texture2D:
 	var img := Image.create(128, 128, false, Image.FORMAT_RGBA8)

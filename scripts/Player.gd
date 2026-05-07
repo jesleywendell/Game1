@@ -290,10 +290,10 @@ func apply_temp_upgrade(type: String) -> void:
 	_apply_stats()
 
 func drain_hp(amount: float) -> void:
-	current_health = maxf(current_health - amount, 1.0)
-	_no_damage_timer = 0.0
-	_regen_tick_timer = REGEN_TICK
+	current_health = max(0.0, current_health - amount)
 	health_changed.emit(current_health, max_health)
+	if current_health <= 0.0:
+		_die()
 
 func heal(amount: float) -> void:
 	current_health = minf(current_health + amount, max_health)

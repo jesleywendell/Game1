@@ -100,16 +100,10 @@ const UNDEAD_BORDER: Array[String] = [
 	"Lich_shadow1.png",          "Lich_shadow2.png",
 ]
 
+var _tex_cache: Dictionary = {}
 var _occupied := {}
-var _obstacle_body: StaticBody2D
 
 func _ready() -> void:
-	# Single static body shared by all collidable scatter objects — much cheaper than one per object
-	_obstacle_body = StaticBody2D.new()
-	_obstacle_body.collision_layer = 1
-	_obstacle_body.collision_mask  = 0
-	add_child(_obstacle_body)
-
 	var area := ProgressionManager.get_current_area()
 	var noise_scatter := FastNoiseLite.new()
 	noise_scatter.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -227,11 +221,6 @@ func _spawn_area_scatter(
 			else:
 				_place_named_object(col, row, sv, interior, base, -5, s_interior)
 
-func _is_obstacle(filename: String) -> bool:
-	var f := filename.to_lower()
-	return ("rock" in f or "ruin" in f or "crystal" in f
-		or "dead_tree" in f or "broken_tree" in f or "lich" in f)
-
 func _place_named_object(col: int, row: int, sv: int, arr: Array, base: String, z: int, s: float) -> void:
 	if arr.is_empty(): return
 	var file: String = arr[abs(sv) % arr.size()]
@@ -241,20 +230,12 @@ func _place_named_object(col: int, row: int, sv: int, arr: Array, base: String, 
 	var scale_mul := 0.82 + 0.36 * float(abs(sv * 7 + 31) % 100) / 100.0
 	var world_pos := Vector2((col - row) * TILE_W / 2.0, (col + row) * TILE_H / 4.0)
 	var spr := Sprite2D.new()
-	spr.texture = load(path)
+	spr.texture = _get_tex(path)
 	spr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	spr.position = world_pos
 	spr.z_index = z
 	spr.scale = Vector2(s * scale_mul, s * scale_mul)
 	add_child(spr)
-
-	if _is_obstacle(file):
-		var shape := CircleShape2D.new()
-		shape.radius = 11.0
-		var cs := CollisionShape2D.new()
-		cs.shape = shape
-		cs.position = world_pos
-		_obstacle_body.add_child(cs)
 
 	_mark_occupied(col, row)
 
@@ -283,10 +264,15 @@ func _add_border_colliders() -> void:
 func _stable_pick(seed_val: int, count: int) -> int:
 	return abs(seed_val) % count
 
+func _get_tex(path: String) -> Texture2D:
+	if not _tex_cache.has(path):
+		_tex_cache[path] = load(path)
+	return _tex_cache[path]
+
 func _place_tile(col: int, row: int, tile_index: int) -> void:
 	tile_index = clampi(tile_index, 0, 114)
 	var spr := Sprite2D.new()
-	spr.texture = load(TILE_PATH % tile_index)
+	spr.texture = _get_tex(TILE_PATH % tile_index)
 	spr.position = Vector2((col - row) * TILE_W / 2.0, (col + row) * TILE_H / 4.0)
 	spr.z_index = -10
 	add_child(spr)

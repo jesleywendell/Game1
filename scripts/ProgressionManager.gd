@@ -120,6 +120,7 @@ func advance_area() -> void:
 	save()
 
 func reset_level() -> void:
+	data.current_area = 1
 	data.level = 1
 	data.current_xp = 0.0
 	data.attack_damage_upgrades = 0

@@ -2,7 +2,6 @@ extends CanvasLayer
 
 const BG   := "res://assets/pause/background/Paused2.png"
 const CONT := "res://assets/pause/botoes/continue.png"
-const CONF := "res://assets/pause/botoes/config.png"
 const MENU := "res://assets/pause/return_menu_principal.png"
 
 var _root: Control
@@ -71,14 +70,13 @@ func _build() -> void:
 
 	var bw := pw * 0.46
 	var bh := bw * (float(btn_img.get_height()) / float(btn_img.get_width()))
-	var bx := px + (pw - bw) * 0.5 + pw * 0.05
+	var bx := px + (pw - bw) * 0.5 + pw * 0.06
 	var gap := bh * 0.20
-	var total_h := bh * 3.0 + gap * 2.0
+	var total_h := bh * 2.0 + gap
 	var by0 := py + ph * 0.38 + (ph * 0.62 - total_h) * 0.5
 
-	_btn(CONT, bx, by0,               bw, bh, _resume)
-	_btn(CONF, bx, by0 + (bh+gap),    bw, bh, func(): pass)
-	_btn(MENU, bx, by0 + (bh+gap)*2.0, bw, bh, _go_main)
+	_btn(CONT, bx, by0,            bw, bh, _resume)
+	_btn(MENU, bx, by0 + bh + gap, bw, bh, _go_main)
 
 func _btn(path: String, x: float, y: float, w: float, h: float, cb: Callable) -> void:
 	var btn := TextureButton.new()
