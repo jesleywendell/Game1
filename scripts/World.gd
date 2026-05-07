@@ -97,19 +97,24 @@ func _show_game_over_overlay(wave_reached: int = 0) -> void:
 	root.modulate.a = 0.0
 	cl.add_child(root)
 
+	# Card container — defines the background size and anchors all content to it
+	var card := Control.new()
+	card.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	card.custom_minimum_size = Vector2(880, 550)
+	root.add_child(card)
+
 	var bg := TextureRect.new()
 	bg.texture = load("res://assets/game_over/background/Tela_Gameover_Sembotoes.png")
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	root.add_child(bg)
+	card.add_child(bg)
 
 	var vbox := VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.add_theme_constant_override("separation", 16)
 	vbox.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	vbox.custom_minimum_size = Vector2(320, 0)
-	root.add_child(vbox)
+	card.add_child(vbox)
 
 	var stats: Array[String] = [
 		"Inimigos derrotados: %d"  % _enemies_killed,
