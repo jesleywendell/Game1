@@ -122,12 +122,12 @@ func _show_game_over_overlay(wave_reached: int = 0) -> void:
 	root.add_child(bg)
 
 	# Stats + botoes usam a mesma largura e o mesmo x para ficarem alinhados
-	var bw_shared := pw * 0.62
+	var bw_shared := pw * 0.52
 	var bx_shared := px + (pw - bw_shared) * 0.5
 
 	var sv_w := bw_shared
 	var sv_x := bx_shared
-	var sv_y := py + ph * 0.40
+	var sv_y := py + ph * 0.47
 	var stats_box := VBoxContainer.new()
 	stats_box.add_theme_constant_override("separation", 8)
 	stats_box.set_position(Vector2(sv_x, sv_y))
@@ -154,8 +154,8 @@ func _show_game_over_overlay(wave_reached: int = 0) -> void:
 	# Buttons — mesma largura e x dos stats para alinhamento perfeito
 	var bw   := bw_shared
 	var bx   := bx_shared
-	var gap  := pw * 0.022
-	var by   := py + ph * 0.58
+	var gap  := pw * 0.018
+	var by   := py + ph * 0.62
 
 	var bh0 := bw * (200.0 / 1113.0)
 	_go_btn(root, "res://assets/game_over/buttons/try_again.png", bx, by, bw, bh0,
