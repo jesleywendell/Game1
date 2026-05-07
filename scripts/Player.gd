@@ -17,7 +17,8 @@ const FRAME_W := 175
 const FRAME_H := 131
 const WALK_COLS := 4
 const WALK_FPS  := 8.0
-const AZRAEL_PATH := "res://assets/protagonista/walk/azrael_walk.png"
+const AZRAEL_PATH   := "res://assets/protagonista/walk/azrael_walk.png"
+const DASH_VFX      := preload("res://scripts/DashVFX.gd")
 # Ordem das linhas na sheet: DOWN, DOWN-LEFT, LEFT, UP-LEFT, UP, UP-RIGHT, RIGHT, DOWN-RIGHT
 const WALK_ROW_ORDER: Array[String] = ["S","SW","W","NW","N","NE","E","SE"]
 const INVINCIBILITY_DURATION := 0.6
@@ -163,6 +164,12 @@ func _physics_process(delta: float) -> void:
 	_update_animation(move_dir)
 	queue_redraw()
 
+	var walking := move_dir != Vector2.ZERO and not is_dashing and not is_attacking
+	if walking:
+		AudioManager.play_footsteps()
+	else:
+		AudioManager.stop_footsteps()
+
 func _update_animation(move_dir: Vector2) -> void:
 	var visual_dir := move_dir
 	if visual_dir == Vector2.ZERO and is_dashing:
@@ -190,6 +197,10 @@ func start_dash(direction: Vector2) -> void:
 	cooldown_timer = dash_cooldown
 	dash_direction = direction.normalized()
 	AudioManager.play_sfx("dash")
+	var vfx := DASH_VFX.new()
+	vfx.global_position = global_position
+	vfx.rotation = dash_direction.angle()
+	get_tree().current_scene.add_child(vfx)
 
 func _get_move_input() -> Vector2:
 	var x := Input.get_axis("move_left", "move_right")
@@ -260,8 +271,6 @@ func _draw() -> void:
 		draw_arc(Vector2.ZERO, attack_hitbox_distance + 8.0,
 			base_angle - half_arc, base_angle + half_arc,
 			20, Color(1.0, 0.85, 0.3, alpha * 0.9), 3.0)
-	if skill_manager and skill_manager.skill_q_active_timer > 0.0:
-		draw_arc(Vector2.ZERO, 80.0, 0.0, TAU, 32, Color(0.6, 0.0, 1.0, 0.8), 2.0)
 
 func take_damage(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
 	if is_dead or _invincibility_timer > 0.0:
@@ -306,6 +315,7 @@ func _flash_hit() -> void:
 
 func _die() -> void:
 	is_dead = true
+	AudioManager.stop_footsteps()
 	AudioManager.play_sfx("player_die")
 	set_physics_process(false)
 	died.emit()
