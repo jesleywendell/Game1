@@ -7,21 +7,25 @@ const SFX_PATHS := {
 	"damage_player": "res://assets/audio/sfx_damage_player.ogg",
 	"player_die":    "res://assets/audio/sfx_player_die.ogg",
 	"skill_q":       "res://assets/audio/sfx_skill_q.ogg",
-	"skill_e":       "res://assets/audio/sfx_skill_e.ogg",
+	"skill_e":       "res://assets/audio/jogador/skills/fire_ball/pmsfx_FIREMisc_Impact_Fire_Fireball_Burst_Ignition_8_PMSFX_FMOV.wav",
 	"hp_drain":      "res://assets/audio/sfx_hp_drain.ogg",
 	"enemy_die":     "res://assets/audio/sfx_enemy_die.ogg",
 	"boss_phase2":   "res://assets/audio/sfx_boss_phase2.ogg",
 }
-const BTN_SFX_PATH    := "res://assets/audio/botoes/hover_click/sound_ex_machina_Buttons-Stone-Button.wav"
+const BTN_SFX_PATH      := "res://assets/audio/botoes/hover_click/sound_ex_machina_Buttons-Stone-Button.wav"
+const FOOTSTEP_PATH     := "res://assets/audio/jogador/walk/fase_01/zapsplat_foley_footsteps_barefoot_walking_artificial_grass_106409.ogg"
+const SKILL_Q_PATH      := "res://assets/audio/jogador/skills/blood_mage/data_pion-sfx28-attack-338386.ogg"
 const AMBIENT_PATH    := "res://assets/audio/ambient_forest.ogg"
 const WAVE_MUSIC_PATH := "res://assets/audio/waves/LVS04_10_Battlefield_bpm180_loop.wav"
-const BOSS_MUSIC_PATH := "res://assets/audio/waves/wave_boss/01-DavidKBD-Purgatory-Pack-Purgatory.wav"
+const BOSS_MUSIC_PATH := "res://assets/audio/waves/wave_boss/DavidKBD-01 - Grave Rot Requiem.ogg"
 
 var _players: Dictionary = {}
 var _ambient: AudioStreamPlayer
 var _btn_hover: AudioStreamPlayer
 var _btn_click: AudioStreamPlayer
 var _music: AudioStreamPlayer
+var _footstep: AudioStreamPlayer
+var _skill_q: AudioStreamPlayer
 var _current_music_path := ""
 
 func _ready() -> void:
@@ -59,6 +63,26 @@ func _ready() -> void:
 	_music.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(_music)
 
+	_footstep = AudioStreamPlayer.new()
+	_footstep.name = "footstep"
+	_footstep.volume_db = -6.0
+	if ResourceLoader.exists(FOOTSTEP_PATH):
+		var fs := load(FOOTSTEP_PATH) as AudioStreamOggVorbis
+		if fs:
+			fs.loop = true
+			_footstep.stream = fs
+	add_child(_footstep)
+
+	_skill_q = AudioStreamPlayer.new()
+	_skill_q.name = "skill_q_loop"
+	_skill_q.volume_db = -4.0
+	if ResourceLoader.exists(SKILL_Q_PATH):
+		var sq := load(SKILL_Q_PATH) as AudioStreamOggVorbis
+		if sq:
+			sq.loop = true
+			_skill_q.stream = sq
+	add_child(_skill_q)
+
 func play_sfx(sfx_key: String) -> void:
 	if not _players.has(sfx_key):
 		return
@@ -79,6 +103,24 @@ func play_btn_click() -> void:
 		return
 	_btn_click.stop()
 	_btn_click.play()
+
+func play_skill_q_sound() -> void:
+	if _skill_q.stream == null or _skill_q.playing:
+		return
+	_skill_q.play()
+
+func stop_skill_q_sound() -> void:
+	if _skill_q.playing:
+		_skill_q.stop()
+
+func play_footsteps() -> void:
+	if _footstep.stream == null or _footstep.playing:
+		return
+	_footstep.play()
+
+func stop_footsteps() -> void:
+	if _footstep.playing:
+		_footstep.stop()
 
 func play_ambient() -> void:
 	if _ambient.stream == null:
@@ -108,5 +150,8 @@ func _play_music(path: String) -> void:
 	_current_music_path = path
 	if stream is AudioStreamWAV:
 		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
+	elif stream is AudioStreamOggVorbis:
+		(stream as AudioStreamOggVorbis).loop = true
+	_music.stop()
 	_music.stream = stream
 	_music.play()
