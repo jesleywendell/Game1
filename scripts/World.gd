@@ -1,7 +1,8 @@
 extends Node2D
 
-const UPGRADE_PANEL := preload("res://scenes/UpgradePanel.tscn")
-const PAUSE_MENU    := preload("res://scenes/PauseMenu.tscn")
+const UPGRADE_PANEL      := preload("res://scenes/UpgradePanel.tscn")
+const PAUSE_MENU         := preload("res://scenes/PauseMenu.tscn")
+const PATHWAY_GENERATOR  := preload("res://scripts/PathwayGenerator.gd")
 
 @onready var player: CharacterBody2D = $Player
 @onready var hud: CanvasLayer = $HUD
@@ -12,6 +13,8 @@ var _run_start_time: int = 0
 var _upgrade_panel: CanvasLayer
 var _fragments_at_start: int = 0
 var _light_texture: Texture2D
+var _portal_spawn_pos: Vector2
+var _pathway_gen: Node = null
 
 func _ready() -> void:
 	hud.layer = 2
@@ -211,40 +214,60 @@ func _on_boss_spawned() -> void:
 func _on_area_cleared() -> void:
 	if player.is_dead:
 		return
+	var from_area := ProgressionManager.get_current_area()
 	ProgressionManager.advance_area()
+	var to_area := ProgressionManager.get_current_area()
+	_spawn_transition_path(from_area, to_area)
 	await get_tree().create_timer(1.5).timeout
 	_spawn_exit_portal()
 
+func _spawn_transition_path(from_area: int, to_area: int) -> void:
+	var pg := PATHWAY_GENERATOR.new()
+	add_child(pg)
+	pg.build(from_area, to_area, player.global_position)
+	_portal_spawn_pos = pg.portal_end
+	_pathway_gen = pg
+
 func _spawn_exit_portal() -> void:
+	if is_instance_valid(_pathway_gen):
+		_pathway_gen.open_end()
+
+	var spawn_pos := _portal_spawn_pos if _portal_spawn_pos != Vector2.ZERO \
+		else player.global_position + Vector2(120, 0)
+
 	var portal := Area2D.new()
-	portal.position = player.position + Vector2(80, 0)
-	portal.z_index = 1
+	portal.z_index = 12
 	add_child(portal)
+	portal.global_position = spawn_pos
 
-	var spr := Sprite2D.new()
-	spr.texture = load("res://assets/Free-Undead-Tileset-Top-Down-Pixel-Art/PNG/Objects_separately/Scull_door_shadow1.png")
-	spr.scale = Vector2(1.4, 1.4)
-	portal.add_child(spr)
+	# Skull door no fim do caminho
+	if ResourceLoader.exists("res://assets/Free-Undead-Tileset-Top-Down-Pixel-Art/PNG/Objects_separately/Scull_door_shadow1.png"):
+		var spr     := Sprite2D.new()
+		spr.texture  = load("res://assets/Free-Undead-Tileset-Top-Down-Pixel-Art/PNG/Objects_separately/Scull_door_shadow1.png")
+		spr.scale    = Vector2(1.6, 1.6)
+		spr.z_index  = 1
+		portal.add_child(spr)
 
-	var particles := CPUParticles2D.new()
-	particles.emitting = true
-	particles.amount = 16
-	particles.lifetime = 1.2
-	particles.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
-	particles.emission_sphere_radius = 18.0
-	particles.direction = Vector2(0, -1)
-	particles.spread = 40.0
-	particles.gravity = Vector2(0, -20)
-	particles.initial_velocity_min = 8.0
-	particles.initial_velocity_max = 20.0
-	particles.color = Color(0.4, 0.0, 0.8, 0.7)
-	particles.z_index = 2
+	# Particulas de portal
+	var particles                    := CPUParticles2D.new()
+	particles.emitting                = true
+	particles.amount                  = 24
+	particles.lifetime                = 1.5
+	particles.emission_shape          = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	particles.emission_sphere_radius  = 22.0
+	particles.direction               = Vector2(0.0, -1.0)
+	particles.spread                  = 45.0
+	particles.gravity                 = Vector2(0.0, -25.0)
+	particles.initial_velocity_min    = 10.0
+	particles.initial_velocity_max    = 28.0
+	particles.color                   = Color(0.5, 0.0, 1.0, 0.8)
+	particles.z_index                 = 2
 	portal.add_child(particles)
 
-	var shape := CircleShape2D.new()
-	shape.radius = 32.0
-	var cs := CollisionShape2D.new()
-	cs.shape = shape
+	var shape      := CircleShape2D.new()
+	shape.radius    = 36.0
+	var cs         := CollisionShape2D.new()
+	cs.shape        = shape
 	portal.add_child(cs)
 
 	portal.body_entered.connect(func(body):
@@ -253,10 +276,9 @@ func _spawn_exit_portal() -> void:
 			TransitionScreen.fade_to("res://scenes/World.tscn")
 	)
 
-	# Animate portal appearing
 	portal.scale = Vector2.ZERO
 	var tw := create_tween()
-	tw.tween_property(portal, "scale", Vector2.ONE, 0.5).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tw.tween_property(portal, "scale", Vector2.ONE, 0.6).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_fullscreen"):
