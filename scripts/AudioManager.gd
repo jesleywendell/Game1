@@ -93,6 +93,7 @@ func play_wave_music() -> void:
 	_play_music(WAVE_MUSIC_PATH)
 
 func play_boss_music() -> void:
+	print("[AudioManager] play_boss_music chamado, path=", BOSS_MUSIC_PATH)
 	_play_music(BOSS_MUSIC_PATH)
 
 func stop_music() -> void:
@@ -100,10 +101,14 @@ func stop_music() -> void:
 	_current_music_path = ""
 
 func _play_music(path: String) -> void:
+	print("[AudioManager] _play_music path=", path, " | current=", _current_music_path, " | playing=", _music.playing)
 	if _current_music_path == path and _music.playing:
+		print("[AudioManager] ja tocando, ignorando")
 		return
 	var stream: AudioStream = load(path)
+	print("[AudioManager] stream carregado: ", stream)
 	if stream == null:
+		print("[AudioManager] stream NULL — arquivo nao carregou")
 		return
 	_music.stop()
 	_current_music_path = path
@@ -114,3 +119,4 @@ func _play_music(path: String) -> void:
 	else:
 		_music.stream = stream
 	_music.play()
+	print("[AudioManager] play() chamado, playing=", _music.playing)
