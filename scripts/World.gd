@@ -127,9 +127,9 @@ func _show_game_over_overlay(wave_reached: int = 0) -> void:
 
 	var sv_w := bw_shared
 	var sv_x := bx_shared
-	var sv_y := py + ph * 0.47
+	var sv_y := py + ph * 0.45
 	var stats_box := VBoxContainer.new()
-	stats_box.add_theme_constant_override("separation", 8)
+	stats_box.add_theme_constant_override("separation", 5)
 	stats_box.set_position(Vector2(sv_x, sv_y))
 	stats_box.custom_minimum_size = Vector2(sv_w, 0)
 	root.add_child(stats_box)
@@ -144,7 +144,7 @@ func _show_game_over_overlay(wave_reached: int = 0) -> void:
 		var lbl := Label.new()
 		lbl.text = s
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lbl.add_theme_font_size_override("font_size", 18)
+		lbl.add_theme_font_size_override("font_size", 15)
 		lbl.add_theme_color_override("font_color", Color(0.92, 0.88, 0.75))
 		lbl.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.8))
 		lbl.add_theme_constant_override("shadow_offset_x", 2)
