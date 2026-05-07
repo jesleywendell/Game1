@@ -121,10 +121,13 @@ func _show_game_over_overlay(wave_reached: int = 0) -> void:
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(bg)
 
-	# Stats labels — centered in upper half of the background card
-	var sv_w := pw * 0.78
-	var sv_x := px + (pw - sv_w) * 0.5
-	var sv_y := py + ph * 0.42
+	# Stats + botoes usam a mesma largura e o mesmo x para ficarem alinhados
+	var bw_shared := pw * 0.62
+	var bx_shared := px + (pw - bw_shared) * 0.5
+
+	var sv_w := bw_shared
+	var sv_x := bx_shared
+	var sv_y := py + ph * 0.40
 	var stats_box := VBoxContainer.new()
 	stats_box.add_theme_constant_override("separation", 8)
 	stats_box.set_position(Vector2(sv_x, sv_y))
@@ -148,11 +151,11 @@ func _show_game_over_overlay(wave_reached: int = 0) -> void:
 		lbl.add_theme_constant_override("shadow_offset_y", 2)
 		stats_box.add_child(lbl)
 
-	# Buttons — stacked in lower portion of the background card
-	var bw   := pw * 0.60
-	var bx   := px + (pw - bw) * 0.5
+	# Buttons — mesma largura e x dos stats para alinhamento perfeito
+	var bw   := bw_shared
+	var bx   := bx_shared
 	var gap  := pw * 0.022
-	var by   := py + ph * 0.60
+	var by   := py + ph * 0.58
 
 	var bh0 := bw * (200.0 / 1113.0)
 	_go_btn(root, "res://assets/game_over/buttons/try_again.png", bx, by, bw, bh0,
