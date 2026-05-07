@@ -102,16 +102,15 @@ func stop_music() -> void:
 func _play_music(path: String) -> void:
 	if _current_music_path == path and _music.playing:
 		return
-	if not ResourceLoader.exists(path):
-		push_warning("AudioManager: arquivo de musica nao encontrado: " + path)
+	var stream: AudioStream = load(path)
+	if stream == null:
 		return
 	_music.stop()
 	_current_music_path = path
-	var stream := load(path)
-	if stream == null:
-		push_warning("AudioManager: falha ao carregar musica: " + path)
-		return
 	if stream is AudioStreamWAV:
-		(stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
-	_music.stream = stream
+		var wav := (stream as AudioStreamWAV).duplicate() as AudioStreamWAV
+		wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
+		_music.stream = wav
+	else:
+		_music.stream = stream
 	_music.play()
