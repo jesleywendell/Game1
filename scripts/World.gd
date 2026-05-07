@@ -76,10 +76,11 @@ func _on_wave_cleared(wave_number: int) -> void:
 	_wave_manager.start_next_wave()
 
 func _on_player_died() -> void:
+	var wave_reached: int = _wave_manager.current_wave if _wave_manager else 0
 	await get_tree().create_timer(1.5).timeout
-	_show_game_over_overlay()
+	_show_game_over_overlay(wave_reached)
 
-func _show_game_over_overlay() -> void:
+func _show_game_over_overlay(wave_reached: int = 0) -> void:
 	get_tree().paused = true
 	var elapsed_sec: int = int((Time.get_ticks_msec() - _run_start_time) / 1000)
 	var minutes: int = elapsed_sec / 60
@@ -91,78 +92,86 @@ func _show_game_over_overlay() -> void:
 	cl.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(cl)
 
-	var bg := ColorRect.new()
-	bg.color = Color(0.0, 0.0, 0.0, 0.88)
-	bg.anchors_preset = Control.PRESET_FULL_RECT
-	cl.add_child(bg)
+	var root := Control.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.modulate.a = 0.0
+	cl.add_child(root)
 
-	var root_ctrl := Control.new()
-	root_ctrl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	cl.add_child(root_ctrl)
+	var bg := TextureRect.new()
+	bg.texture = load("res://assets/game_over/background/Tela_Gameover_Sembotoes.png")
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	root.add_child(bg)
 
 	var vbox := VBoxContainer.new()
 	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_theme_constant_override("separation", 18)
+	vbox.add_theme_constant_override("separation", 16)
 	vbox.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	vbox.custom_minimum_size = Vector2(480, 0)
-	root_ctrl.add_child(vbox)
-
-	var title := Label.new()
-	title.text = "OATHBREAKER"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 52)
-	title.add_theme_color_override("font_color", Color(0.75, 0.08, 0.08, 1.0))
-	vbox.add_child(title)
-
-	var sub := Label.new()
-	sub.text = "A redenção exige sacrifício"
-	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sub.add_theme_font_size_override("font_size", 18)
-	sub.add_theme_color_override("font_color", Color(0.65, 0.55, 0.55, 1.0))
-	vbox.add_child(sub)
-
-	var sep := HSeparator.new()
-	sep.custom_minimum_size = Vector2(360, 12)
-	vbox.add_child(sep)
+	vbox.custom_minimum_size = Vector2(320, 0)
+	vbox.position += Vector2(0, 80)
+	root.add_child(vbox)
 
 	var stats: Array[String] = [
-		"Inimigos derrotados: %d"   % _enemies_killed,
-		"Fragmentos coletados: %d"  % maxi(0, frags_earned),
-		"Tempo: %dm %02ds"          % [minutes, seconds],
-		"Onda alcançada: %d"        % _wave_manager.current_wave,
+		"Inimigos derrotados: %d"  % _enemies_killed,
+		"Fragmentos coletados: %d" % maxi(0, frags_earned),
+		"Tempo: %dm %02ds"         % [minutes, seconds],
+		"Onda alcançada: %d"       % wave_reached,
 	]
 	for s in stats:
 		var lbl := Label.new()
 		lbl.text = s
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		lbl.add_theme_font_size_override("font_size", 20)
-		lbl.add_theme_color_override("font_color", Color(0.85, 0.85, 0.85, 1.0))
+		lbl.add_theme_font_size_override("font_size", 22)
+		lbl.add_theme_color_override("font_color", Color(0.92, 0.88, 0.75))
+		lbl.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.8))
+		lbl.add_theme_constant_override("shadow_offset_x", 2)
+		lbl.add_theme_constant_override("shadow_offset_y", 2)
 		vbox.add_child(lbl)
 
-	var sep2 := HSeparator.new()
-	sep2.custom_minimum_size = Vector2(360, 12)
-	vbox.add_child(sep2)
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 20)
+	vbox.add_child(spacer)
 
-	var btn_retry := Button.new()
-	btn_retry.text = "Tentar Novamente"
-	btn_retry.add_theme_font_size_override("font_size", 22)
-	btn_retry.custom_minimum_size = Vector2(260, 50)
-	btn_retry.pressed.connect(func():
-		ProgressionManager.reset_level()
-		get_tree().paused = false
-		get_tree().reload_current_scene()
-	)
-	vbox.add_child(btn_retry)
+	vbox.add_child(_make_go_button(
+		"res://assets/game_over/buttons/try_again.png",
+		func():
+			ProgressionManager.reset_level()
+			get_tree().paused = false
+			get_tree().reload_current_scene()
+	))
+	vbox.add_child(_make_go_button(
+		"res://assets/game_over/buttons/return_hub.png",
+		func():
+			get_tree().paused = false
+			TransitionScreen.fade_to("res://scenes/Hub.tscn")
+	))
+	vbox.add_child(_make_go_button(
+		"res://assets/game_over/buttons/main_menu.png",
+		func():
+			get_tree().paused = false
+			TransitionScreen.fade_to("res://scenes/MainMenu.tscn")
+	))
 
-	var btn_menu := Button.new()
-	btn_menu.text = "Menu Principal"
-	btn_menu.add_theme_font_size_override("font_size", 22)
-	btn_menu.custom_minimum_size = Vector2(260, 50)
-	btn_menu.pressed.connect(func():
-		get_tree().paused = false
-		TransitionScreen.fade_to("res://scenes/MainMenu.tscn")
+	var tween := root.create_tween()
+	tween.tween_property(root, "modulate:a", 1.0, 0.6)
+
+func _make_go_button(texture_path: String, callback: Callable) -> TextureButton:
+	var btn := TextureButton.new()
+	btn.texture_normal = load(texture_path)
+	btn.ignore_texture_size = true
+	btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
+	btn.custom_minimum_size = Vector2(280, 64)
+	btn.pressed.connect(callback)
+	btn.mouse_entered.connect(func():
+		var t := btn.create_tween()
+		t.tween_property(btn, "modulate", Color(1.3, 1.3, 1.3), 0.1)
 	)
-	vbox.add_child(btn_menu)
+	btn.mouse_exited.connect(func():
+		var t := btn.create_tween()
+		t.tween_property(btn, "modulate", Color.WHITE, 0.1)
+	)
+	return btn
 
 func _on_boss_spawned() -> void:
 	hud.show_boss_label()
