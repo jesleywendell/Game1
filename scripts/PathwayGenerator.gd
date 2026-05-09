@@ -1,6 +1,5 @@
 extends Node2D
 
-# Mesmas constantes do MapGenerator para compatibilidade visual
 const TILE_PATH := "res://assets/isometric tileset/isometric tileset/separated images/tile_%03d.png"
 
 const SCATTER_BASE: Dictionary = {
@@ -9,7 +8,6 @@ const SCATTER_BASE: Dictionary = {
 	3: "res://assets/Free-Undead-Tileset-Top-Down-Pixel-Art/PNG/Objects_separately/",
 }
 
-# Subsets dos arrays do MapGenerator — mesmos nomes de arquivo
 const SCATTER_FILES: Dictionary = {
 	1: [
 		"Rock_shadow1_1.png", "Rock_shadow1_2.png", "Rock_shadow1_3.png",
@@ -37,82 +35,86 @@ const SCATTER_FILES: Dictionary = {
 	],
 }
 
-# Tiles de chao por area (indices do tileset isometrico)
 const FLOOR_TILES: Dictionary = {
 	1: [12, 13, 14, 20, 21, 22],
 	2: [20, 21, 22, 23, 60, 61],
 	3: [60, 61, 12, 13, 14],
 }
 
-# Cor das particulas do gateway por area
 const GATEWAY_COLOR: Dictionary = {
 	1: Color(0.25, 0.90, 0.20, 0.90),
 	2: Color(0.70, 0.10, 0.95, 0.90),
 	3: Color(0.30, 0.50, 0.95, 0.90),
 }
 
-const CORRIDOR_STEPS   := 20      # passos ao longo do corredor
-const STEP_DIST        := 40.0    # pixels entre cada passo
-const CROSS_TILES      := 5       # tiles de largura (impar)
-const CROSS_DIST       := 18.0    # pixels entre tiles transversais
-const WALL_OFFSET      := 58.0    # distancia do eixo ao muro de colisao
-const PROP_OFFSET      := 52.0    # distancia do eixo ao prop lateral
-const PROP_SCALE_BASE  := 0.38    # igual ao MapGenerator s_interior
+const TILE_W          := 16       # (col - row) * TILE_W
+const TILE_H          := 8        # (col + row) * TILE_H
+const CROSS_HALF      := 2        # half-width in rows; corridor width = 2*CROSS_HALF+1 = 5
 
-# Diracao isometrica "sudeste" (col++): Vector2(16,8).normalized()
-const DIR  := Vector2(0.8944, 0.4472)
-const PERP := Vector2(-0.4472, 0.8944)
+const CORRIDOR_STEPS   := 20
+const WALL_OFFSET      := 58.0
+const PROP_SCALE_BASE  := 0.38
 
 var portal_end:   Vector2
 var _end_wall_cs: CollisionShape2D
 var _tex_cache:   Dictionary = {}
 
+# ─── Coord conversion ────────────────────────────────────────────────────────
+
+func _iso_to_world(col: int, row: int) -> Vector2:
+	return Vector2((col - row) * TILE_W, (col + row) * TILE_H)
+
+func _world_to_iso(world_pos: Vector2) -> Vector2i:
+	var col := roundi((world_pos.x / float(TILE_W) + world_pos.y / float(TILE_H)) / 2.0)
+	var row := roundi((world_pos.y / float(TILE_H) - world_pos.x / float(TILE_W)) / 2.0)
+	return Vector2i(col, row)
+
 # ─── Ponto de entrada ────────────────────────────────────────────────────────
 
 func build(from_area: int, to_area: int, origin: Vector2) -> void:
-	var from_tiles:  Array  = FLOOR_TILES.get(from_area, FLOOR_TILES[1])
-	var to_tiles:    Array  = FLOOR_TILES.get(to_area,   FLOOR_TILES.get(to_area, FLOOR_TILES[2]))
-	var from_files:  Array  = SCATTER_FILES.get(from_area, [])
-	var to_files:    Array  = SCATTER_FILES.get(to_area,   [])
-	var from_base:   String = SCATTER_BASE.get(from_area, SCATTER_BASE[1])
-	var to_base:     String = SCATTER_BASE.get(to_area,   SCATTER_BASE[2])
+	var iso_origin := _world_to_iso(origin)
+	var col_o      := iso_origin.x
+	var row_o      := iso_origin.y
+
+	var from_tiles: Array  = FLOOR_TILES.get(from_area, FLOOR_TILES[1])
+	var to_tiles:   Array  = FLOOR_TILES.get(to_area,   FLOOR_TILES[2])
+	var from_files: Array  = SCATTER_FILES.get(from_area, [])
+	var to_files:   Array  = SCATTER_FILES.get(to_area,   [])
+	var from_base:  String = SCATTER_BASE.get(from_area, SCATTER_BASE[1])
+	var to_base:    String = SCATTER_BASE.get(to_area,   SCATTER_BASE[2])
 
 	for step in CORRIDOR_STEPS:
-		var t      := float(step) / float(CORRIDOR_STEPS - 1)
-		var center := origin + DIR * step * STEP_DIST
-		var tiles  := from_tiles if t < 0.5 else to_tiles
-		var files  := from_files if t < 0.5 else to_files
-		var base   := from_base  if t < 0.5 else to_base
-		var sv     := step * 131  # semente deterministica variada
+		var t     := float(step) / float(CORRIDOR_STEPS - 1)
+		var tiles: Array  = from_tiles if t < 0.5 else to_tiles
+		var files: Array  = from_files if t < 0.5 else to_files
+		var base:  String = from_base  if t < 0.5 else to_base
+		var sv    := step * 131
+		var col_s := col_o + step
 
-		_lay_floor_strip(center, tiles, sv)
+		_lay_floor_strip(col_s, row_o, tiles, sv)
 
-		# Props laterais em passos alternados
 		if step % 2 == 0 and not files.is_empty():
-			_place_prop(center + PERP * PROP_OFFSET, files, base, sv)
-			_place_prop(center - PERP * PROP_OFFSET, files, base, sv + 67)
+			_place_prop(_iso_to_world(col_s, row_o + 3), files, base, sv)
+			_place_prop(_iso_to_world(col_s, row_o - 3), files, base, sv + 67)
 
-	_add_walls(origin)
+	_add_walls(col_o, row_o)
 	_spawn_gateway(origin, from_area)
-	# Portal fica no centro da praca — 2 passos alem do fim do corredor
-	portal_end = origin + DIR * (CORRIDOR_STEPS + 2) * STEP_DIST
-	_add_plaza_floor(portal_end, from_tiles, to_tiles)
+	portal_end = _iso_to_world(col_o + CORRIDOR_STEPS + 2, row_o)
+	_add_plaza_floor(col_o + CORRIDOR_STEPS, row_o, from_tiles, to_tiles)
 
 # ─── Chao do corredor ────────────────────────────────────────────────────────
 
-func _lay_floor_strip(center: Vector2, tiles: Array, sv: int) -> void:
-	for ci in CROSS_TILES:
-		var offset   := (ci - CROSS_TILES / 2) * CROSS_DIST
-		var tile_pos := center + PERP * offset
+func _lay_floor_strip(col_c: int, row_c: int, tiles: Array, sv: int) -> void:
+	for ci in range(-CROSS_HALF, CROSS_HALF + 1):
 		var tile_idx: int = tiles[abs(sv + ci) % tiles.size()]
-		_place_floor(tile_pos, tile_idx)
+		_place_floor(_iso_to_world(col_c, row_c + ci), tile_idx)
 
 func _place_floor(world_pos: Vector2, tile_idx: int) -> void:
 	var path := TILE_PATH % clampi(tile_idx, 0, 114)
 	var spr := Sprite2D.new()
 	spr.texture        = _get_tex(path)
 	spr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
-	spr.z_index        = -9   # logo acima do chao existente (-10)
+	spr.z_index        = -9
 	add_child(spr)
 	spr.global_position = world_pos
 
@@ -134,51 +136,48 @@ func _place_prop(world_pos: Vector2, files: Array, base: String, sv: int) -> voi
 
 # ─── Praca ao redor do portal ────────────────────────────────────────────────
 
-func _add_plaza_floor(center: Vector2, from_tiles: Array, to_tiles: Array) -> void:
+func _add_plaza_floor(col_end: int, row_c: int, from_tiles: Array, to_tiles: Array) -> void:
 	var plaza_r := 3
 	for ps in range(-plaza_r, plaza_r + 1):
-		for pc in range(-(CROSS_TILES + 2), (CROSS_TILES + 3)):
-			var sv      := ps * 100 + pc * 7
-			var t       := float(ps + plaza_r) / float(plaza_r * 2)
-			var tiles   := from_tiles if t < 0.5 else to_tiles
+		for pc in range(-7, 8):
+			var sv       := ps * 100 + pc * 7
+			var t        := float(ps + plaza_r) / float(plaza_r * 2)
+			var tiles    := from_tiles if t < 0.5 else to_tiles
 			var tile_idx: int = tiles[abs(sv) % tiles.size()]
-			var tpos    := center + DIR * ps * STEP_DIST + PERP * pc * CROSS_DIST
-			_place_floor(tpos, tile_idx)
+			_place_floor(_iso_to_world(col_end + ps, row_c + pc), tile_idx)
 
 # ─── Muros de colisao ────────────────────────────────────────────────────────
 
-func _add_walls(origin: Vector2) -> void:
-	var corridor_end := origin + DIR * CORRIDOR_STEPS * STEP_DIST
-	# Paredes laterais se extendem ate o fim da praca (4 passos alem do corredor)
-	var plaza_end    := origin + DIR * (CORRIDOR_STEPS + 4) * STEP_DIST
+func _add_walls(col_o: int, row_o: int) -> void:
+	var origin_w       := _iso_to_world(col_o, row_o)
+	var corridor_end_w := _iso_to_world(col_o + CORRIDOR_STEPS, row_o)
+	var plaza_end_w    := _iso_to_world(col_o + CORRIDOR_STEPS + 4, row_o)
+	var perp           := Vector2(-16.0, 8.0).normalized()
 
 	var body := StaticBody2D.new()
 	body.collision_layer = 1
 	body.collision_mask  = 0
 	add_child(body)
 
-	# Paredes laterais — cobrem corredor + praca
 	for side in [-1, 1]:
-		var offset_v: Vector2 = PERP * (WALL_OFFSET * float(side))
+		var offset_v := perp * (WALL_OFFSET * float(side))
 		var seg := SegmentShape2D.new()
-		seg.a = origin    + offset_v
-		seg.b = plaza_end + offset_v
+		seg.a = origin_w    + offset_v
+		seg.b = plaza_end_w + offset_v
 		var cs := CollisionShape2D.new()
 		cs.shape = seg
 		body.add_child(cs)
 
-	# Muro de fim de corredor — bloqueia ate o portal surgir (sera desativado)
 	var end_seg := SegmentShape2D.new()
-	end_seg.a = corridor_end + PERP * WALL_OFFSET
-	end_seg.b = corridor_end - PERP * WALL_OFFSET
+	end_seg.a = corridor_end_w + perp * WALL_OFFSET
+	end_seg.b = corridor_end_w - perp * WALL_OFFSET
 	_end_wall_cs = CollisionShape2D.new()
 	_end_wall_cs.shape = end_seg
 	body.add_child(_end_wall_cs)
 
-	# Muro permanente no final da praca — impede sair pelo fundo
 	var close_seg := SegmentShape2D.new()
-	close_seg.a = plaza_end + PERP * WALL_OFFSET
-	close_seg.b = plaza_end - PERP * WALL_OFFSET
+	close_seg.a = plaza_end_w + perp * WALL_OFFSET
+	close_seg.b = plaza_end_w - perp * WALL_OFFSET
 	var close_cs := CollisionShape2D.new()
 	close_cs.shape = close_seg
 	body.add_child(close_cs)
