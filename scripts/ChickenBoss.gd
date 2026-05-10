@@ -3,8 +3,9 @@ extends "res://scripts/GalinhaPodre.gd"
 signal boss_triggered
 signal boss_defeated
 
-const BOSS_RADIUS    := 22.0
-const TRIGGER_RADIUS := 120.0
+const BOSS_RADIUS      := 22.0
+const TRIGGER_RADIUS   := 120.0
+const FRAGMENT_REWARD  := 50
 
 var _triggered    := false
 var _trigger_zone : Area2D
@@ -46,7 +47,7 @@ func _die() -> void:
 	set_physics_process(false)
 	_col_shape.set_deferred("disabled", true)
 	ProgressionManager.add_xp(xp_reward)
-	ProgressionManager.add_fragments(50)
+	ProgressionManager.add_fragments(FRAGMENT_REWARD)
 	AudioManager.play_sfx("enemy_die")
 	JuiceManager.spawn_blood(global_position, get_parent())
 	JuiceManager.apply_hitstop(0.12)
