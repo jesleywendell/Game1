@@ -31,15 +31,6 @@ func _build_ui() -> void:
 	bg.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(bg)
 
-	var bg_tex := TextureRect.new()
-	bg_tex.texture = load("res://assets/game_over/background/background_game_over_02.png")
-	bg_tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	bg_tex.stretch_mode = TextureRect.STRETCH_SCALE
-	bg_tex.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg_tex.modulate = Color(1.0, 1.0, 1.0, 0.18)
-	bg_tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg_tex)
-
 	var root := CenterContainer.new()
 	_root = root
 	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
