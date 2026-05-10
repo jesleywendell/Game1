@@ -36,7 +36,11 @@ var _alive_count := 0
 var _boss_alive := false
 var _arena_timer    := ARENA_DURATION
 var _combat_active  := false
-var _frenzy_active  := false
+var _frenzy_active       := false
+var _chicken_boss_active := false
+var _chicken_defeated    := false
+var _saved_wave          := 0
+var _saved_alive_count   := 0
 var _world: Node2D
 
 func init(world: Node2D) -> void:
@@ -135,6 +139,8 @@ func _on_enemy_died() -> void:
 func _check_wave_clear() -> void:
 	if not is_inside_tree():
 		return
+	if _chicken_boss_active:
+		return
 	var alive := get_tree().get_nodes_in_group("active_enemies").size()
 	if alive > 0:
 		return
@@ -164,7 +170,7 @@ func _spawn_boss() -> void:
 	boss_spawned.emit()
 
 func _process(delta: float) -> void:
-	if not _combat_active or _frenzy_active or _boss_alive:
+	if not _combat_active or _frenzy_active or _boss_alive or _chicken_boss_active:
 		return
 	_arena_timer -= delta
 	timer_tick.emit(maxf(_arena_timer, 0.0))
@@ -193,3 +199,34 @@ func _on_boss_died() -> void:
 	if player == null or player.is_dead:
 		return
 	area_cleared.emit()
+
+func suspend_for_chicken_boss() -> void:
+	_saved_wave        = current_wave
+	_saved_alive_count = get_tree().get_nodes_in_group("active_enemies").size()
+	_chicken_boss_active = true
+	_combat_active       = false
+	for enemy in get_tree().get_nodes_in_group("active_enemies"):
+		enemy.queue_free()
+
+func resume_after_chicken_boss() -> void:
+	_chicken_boss_active = false
+	_chicken_defeated    = true
+	if _saved_alive_count == 0:
+		wave_cleared.emit(_saved_wave)
+		return
+	var multiplier := pow(DIFFICULTY_CURVE, _saved_wave - 1)
+	for i in _saved_alive_count:
+		var is_knight  := _saved_wave >= 3 and i % 3 == 2
+		var is_galinha := not is_knight and _saved_wave >= 2 and i % 4 == 3
+		if is_knight:
+			_spawn_knight(i, multiplier)
+		elif is_galinha:
+			_spawn_galinha(i, multiplier)
+		else:
+			_spawn_skeleton(i, multiplier)
+	if _frenzy_active:
+		for enemy in get_tree().get_nodes_in_group("active_enemies"):
+			if enemy.has_method("apply_frenzy"):
+				enemy.apply_frenzy()
+	_alive_count   = _saved_alive_count
+	_combat_active = true
