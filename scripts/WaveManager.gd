@@ -38,7 +38,6 @@ var _arena_timer    := ARENA_DURATION
 var _combat_active  := false
 var _frenzy_active       := false
 var _chicken_boss_active := false
-var _chicken_defeated    := false
 var _saved_wave          := 0
 var _saved_alive_count   := 0
 var _world: Node2D
@@ -210,7 +209,6 @@ func suspend_for_chicken_boss() -> void:
 
 func resume_after_chicken_boss() -> void:
 	_chicken_boss_active = false
-	_chicken_defeated    = true
 	if _saved_alive_count == 0:
 		wave_cleared.emit(_saved_wave)
 		return
