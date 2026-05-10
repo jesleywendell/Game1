@@ -35,6 +35,8 @@ func _ready() -> void:
 	_wave_manager.name = "WaveManager"
 	add_child(_wave_manager)
 	_wave_manager.init(self)
+	if ProgressionManager.get_current_area() == 1:
+		_spawn_chicken_boss()
 	_wave_manager.wave_cleared.connect(_on_wave_cleared)
 	_wave_manager.wave_started.connect(_on_wave_started)
 	_wave_manager.wave_started.connect(hud.on_wave_started)
@@ -493,3 +495,11 @@ func _setup_atmosphere() -> void:
 		wisps.color = Color(0.38, 0.52, 0.92, 0.32)
 		wisps.z_index = 6
 		add_child(wisps)
+
+func _spawn_chicken_boss() -> void:
+	var boss = load("res://scripts/ChickenBoss.gd").new()
+	boss.position = Vector2(-1488.0, 984.0)
+	boss.add_to_group("chicken_boss")
+	boss.boss_triggered.connect(_wave_manager.suspend_for_chicken_boss)
+	boss.boss_defeated.connect(_wave_manager.resume_after_chicken_boss)
+	add_child(boss)
