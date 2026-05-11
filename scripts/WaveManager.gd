@@ -12,6 +12,8 @@ const BOAR_SCENE   := preload("res://scenes/Boar.tscn")
 const KNIGHT_SCENE := preload("res://scenes/KnightCoxinha.tscn")
 const SKELETON_SCRIPT   := preload("res://scripts/Skeleton.gd")
 const GALINHA_SCRIPT    := preload("res://scripts/GalinhaPodre.gd")
+const TRISS_SCRIPT      := preload("res://scripts/Triss.gd")
+const LEJYES_SCRIPT     := preload("res://scripts/LeyjesMosca.gd")
 const BASE_COUNT := 4
 const DIFFICULTY_CURVE := 1.18
 const BASE_HEALTH := 60.0
@@ -149,13 +151,25 @@ func _check_wave_clear() -> void:
 func _spawn_boss() -> void:
 	var area       := ProgressionManager.get_current_area()
 	var area_scale := 1.0 + (area - 1) * 0.5
-	var boss = KNIGHT_SCENE.instantiate()
-	boss.position = Vector2(0.0, 800.0)
-	boss.MAX_HEALTH = 250.0 * area_scale
-	boss.current_health = 250.0 * area_scale
-	boss.DAMAGE = 30.0 * area_scale
-	boss.xp_reward = 200.0 * area_scale
-	boss.is_boss = true
+	var boss: Node
+	if area >= 3:
+		boss = LEJYES_SCRIPT.new()
+		boss.MAX_HEALTH = 450.0 * area_scale
+		boss.DAMAGE     = 40.0 * area_scale
+		boss.xp_reward  = 250.0 * area_scale
+	elif area >= 2:
+		boss = TRISS_SCRIPT.new()
+		boss.MAX_HEALTH = 280.0 * area_scale
+		boss.DAMAGE     = 28.0 * area_scale
+		boss.xp_reward  = 150.0 * area_scale
+	else:
+		boss = KNIGHT_SCENE.instantiate()
+		boss.MAX_HEALTH = 250.0 * area_scale
+		boss.DAMAGE     = 30.0 * area_scale
+		boss.xp_reward  = 200.0 * area_scale
+	boss.current_health = boss.MAX_HEALTH
+	boss.position       = Vector2(0.0, 800.0)
+	boss.is_boss        = true
 	boss.add_to_group("active_enemies")
 	boss.tree_exited.connect(_on_boss_died)
 	_boss_alive = true
