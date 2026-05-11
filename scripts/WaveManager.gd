@@ -58,23 +58,17 @@ func start_next_wave() -> void:
 	_alive_count = count
 	wave_started.emit(current_wave)
 	for i in count:
-		var is_knight  := false
 		var is_galinha := false
 		if area >= 3:
-			# Fase 3: rotacao fixa knight → galinha → skeleton desde wave 1
-			is_knight  = i % 3 == 0
-			is_galinha = i % 3 == 1
+			# Fase 3: galinha → galinha → skeleton
+			is_galinha = i % 3 != 2
 		elif area >= 2:
-			# Fase 2: knight a cada 2, galinha esporadica
-			is_knight  = i % 2 == 1
-			is_galinha = not is_knight and current_wave >= 2 and i % 4 == 3
+			# Fase 2: galinha a cada 2, skeleton nos demais
+			is_galinha = i % 2 == 1 or (current_wave >= 2 and i % 4 == 3)
 		else:
-			# Fase 1: knight so na wave 3+, galinha na wave 2+
-			is_knight  = current_wave >= 3 and i % 3 == 2
-			is_galinha = not is_knight and current_wave >= 2 and i % 4 == 3
-		if is_knight:
-			_spawn_knight(i, multiplier)
-		elif is_galinha:
+			# Fase 1: galinha na wave 2+, skeleton nos demais
+			is_galinha = not is_galinha and current_wave >= 2 and i % 4 == 3
+		if is_galinha:
 			_spawn_galinha(i, multiplier)
 		else:
 			_spawn_skeleton(i, multiplier)
@@ -214,11 +208,8 @@ func resume_after_chicken_boss() -> void:
 		return
 	var multiplier := pow(DIFFICULTY_CURVE, _saved_wave - 1)
 	for i in _saved_alive_count:
-		var is_knight  := _saved_wave >= 3 and i % 3 == 2
-		var is_galinha := not is_knight and _saved_wave >= 2 and i % 4 == 3
-		if is_knight:
-			_spawn_knight(i, multiplier)
-		elif is_galinha:
+		var is_galinha := _saved_wave >= 2 and i % 4 == 3
+		if is_galinha:
 			_spawn_galinha(i, multiplier)
 		else:
 			_spawn_skeleton(i, multiplier)
