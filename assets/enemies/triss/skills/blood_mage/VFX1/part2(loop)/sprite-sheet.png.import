@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cun4jh8c26417"
-path="res://.godot/imported/sprite-sheet.png-2968f9a408e7dddbacd0a5e042b8db51.ctex"
+path="res://.godot/imported/sprite-sheet.png-d5474cb28c1fdb268a104c16dbfdbe6e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/protagonista/skills/blood_mage/VFX1/part2(loop)/sprite-sheet.png"
-dest_files=["res://.godot/imported/sprite-sheet.png-2968f9a408e7dddbacd0a5e042b8db51.ctex"]
+source_file="res://assets/enemies/triss/skills/blood_mage/VFX1/part2(loop)/sprite-sheet.png"
+dest_files=["res://.godot/imported/sprite-sheet.png-d5474cb28c1fdb268a104c16dbfdbe6e.ctex"]
 
 [params]
 

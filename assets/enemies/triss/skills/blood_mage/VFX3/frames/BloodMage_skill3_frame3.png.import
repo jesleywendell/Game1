@@ -3,15 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://drf8cu2j3dyqi"
-path="res://.godot/imported/BloodMage_skill3_frame3.png-98db839dd7e8967cd3338a3c71bc88a7.ctex"
+path="res://.godot/imported/BloodMage_skill3_frame3.png-779d60fbcb1ed9d2bf7a89a9ee930493.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/protagonista/skills/blood_mage/VFX3/frames/BloodMage_skill3_frame3.png"
-dest_files=["res://.godot/imported/BloodMage_skill3_frame3.png-98db839dd7e8967cd3338a3c71bc88a7.ctex"]
+source_file="res://assets/enemies/triss/skills/blood_mage/VFX3/frames/BloodMage_skill3_frame3.png"
+dest_files=["res://.godot/imported/BloodMage_skill3_frame3.png-779d60fbcb1ed9d2bf7a89a9ee930493.ctex"]
 
 [params]
 
