@@ -116,7 +116,7 @@ func _build_ui() -> void:
 
 	# Fade in entire layer
 	var tw := create_tween()
-	tw.set_process_mode(Tween.TWEEN_PROCESS_ALWAYS)
+	tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tw.tween_property(bg, "modulate:a", 1.0, 0.8)
 
 func _make_btn(label_text: String, col: Color, x: float, y: float, w: float, h: float, cb: Callable) -> void:

@@ -34,7 +34,7 @@ func _ready() -> void:
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_label.add_theme_font_size_override("font_size", 26)
-	_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0, 0.0))
+	_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
 	_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 1.0))
 	_label.add_theme_constant_override("shadow_offset_x", 3)
 	_label.add_theme_constant_override("shadow_offset_y", 3)
@@ -44,7 +44,7 @@ func _ready() -> void:
 	add_child(_label)
 
 	var tw := create_tween()
-	tw.set_process_mode(Tween.TWEEN_PROCESS_ALWAYS)
+	tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tw.tween_property(overlay, "color:a", 0.60, 0.9)
 	tw.tween_interval(0.3)
 	tw.tween_callback(_show_next)
@@ -58,7 +58,7 @@ func _show_next() -> void:
 	_label.modulate.a = 0.0
 
 	var tw := create_tween()
-	tw.set_process_mode(Tween.TWEEN_PROCESS_ALWAYS)
+	tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tw.tween_property(_label, "modulate:a", 1.0, FADE_IN)
 	tw.tween_interval(HOLD)
 	tw.tween_property(_label, "modulate:a", 0.0, FADE_OUT)
@@ -69,7 +69,7 @@ func _show_next() -> void:
 
 func _end() -> void:
 	var tw := create_tween()
-	tw.set_process_mode(Tween.TWEEN_PROCESS_ALWAYS)
+	tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tw.tween_interval(0.4)
 	tw.tween_callback(func():
 		finished.emit()
