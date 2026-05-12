@@ -3,6 +3,9 @@ extends Node2D
 const UPGRADE_PANEL      := preload("res://scenes/UpgradePanel.tscn")
 const PAUSE_MENU         := preload("res://scenes/PauseMenu.tscn")
 const PATHWAY_GENERATOR  := preload("res://scripts/PathwayGenerator.gd")
+const BOSS_DIALOGUE      := preload("res://scripts/BossDialogue.gd")
+const AZRAEL_MONOLOGUE   := preload("res://scripts/AzraelMonologue.gd")
+const VICTORY_SCREEN     := preload("res://scripts/VictoryScreen.gd")
 
 @onready var player: CharacterBody2D = $Player
 @onready var hud: CanvasLayer = $HUD
@@ -15,6 +18,7 @@ var _fragments_at_start: int = 0
 var _light_texture: Texture2D
 var _portal_spawn_pos: Vector2
 var _pathway_gen: Node = null
+var _canvas_modulate: CanvasModulate = null
 
 func _ready() -> void:
 	hud.layer = 2
@@ -43,6 +47,7 @@ func _ready() -> void:
 	hud.set_skill_manager(player.get_node("SkillManager"))
 	_wave_manager.area_cleared.connect(_on_area_cleared)
 	_wave_manager.boss_spawned.connect(_on_boss_spawned)
+	_wave_manager.boss_intro_requested.connect(_on_boss_intro_requested)
 	_wave_manager.timer_tick.connect(hud.on_timer_tick)
 	_wave_manager.frenzy_started.connect(hud.on_frenzy_started)
 	var radar: Node = load("res://scripts/EnemyRadar.gd").new()
@@ -209,6 +214,13 @@ func _go_btn(parent: Control, path: String, x: float, y: float, w: float, h: flo
 	)
 	parent.add_child(btn)
 
+func _on_boss_intro_requested(area: int) -> void:
+	AudioManager.stop_music()
+	var dialogue = BOSS_DIALOGUE.new()
+	dialogue.setup(BOSS_DIALOGUE.get_lines(area))
+	add_child(dialogue)
+	dialogue.dialogue_finished.connect(_wave_manager.execute_boss_spawn)
+
 func _on_boss_spawned() -> void:
 	hud.show_boss_label()
 	AudioManager.play_boss_music()
@@ -217,11 +229,36 @@ func _on_area_cleared() -> void:
 	if player.is_dead:
 		return
 	var from_area := ProgressionManager.get_current_area()
+	if from_area >= 3:
+		_start_victory_sequence()
+		return
 	ProgressionManager.advance_area()
 	var to_area := ProgressionManager.get_current_area()
 	_spawn_transition_path(from_area, to_area)
 	await get_tree().create_timer(1.5).timeout
 	_spawn_exit_portal()
+
+func _start_victory_sequence() -> void:
+	get_tree().paused = true
+	var dialogue := BOSS_DIALOGUE.new()
+	dialogue.setup(BOSS_DIALOGUE.get_death_lines(3))
+	dialogue.auto_unpause = false
+	add_child(dialogue)
+	dialogue.dialogue_finished.connect(_on_jess_death_dialogue_done)
+
+func _on_jess_death_dialogue_done() -> void:
+	if is_instance_valid(_canvas_modulate):
+		var tw := create_tween()
+		tw.set_process_mode(Tween.TWEEN_PROCESS_ALWAYS)
+		tw.tween_property(_canvas_modulate, "color", Color(0.35, 0.30, 0.22), 3.2)
+	var monologue := AZRAEL_MONOLOGUE.new()
+	add_child(monologue)
+	monologue.finished.connect(_on_monologue_done)
+
+func _on_monologue_done() -> void:
+	var vs := VICTORY_SCREEN.new()
+	vs.setup(_enemies_killed, _run_start_time, _fragments_at_start)
+	add_child(vs)
 
 func _spawn_transition_path(from_area: int, to_area: int) -> void:
 	var pg := PATHWAY_GENERATOR.new()
@@ -369,6 +406,7 @@ func _setup_atmosphere() -> void:
 		3: cm.color = Color(0.16, 0.18, 0.28)   # cold grave blue
 		_: cm.color = Color(0.22, 0.24, 0.24)
 	add_child(cm)
+	_canvas_modulate = cm
 
 	var atm := CanvasLayer.new()
 	atm.layer = 1
