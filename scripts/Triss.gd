@@ -20,6 +20,19 @@ const BAR_W := 110.0
 const BAR_H := 8.0
 const BAR_Y := -112.0  # acima do topo do sprite escalado (64*1.5=96 + margem)
 
+const TRISS_BOLT := preload("res://scripts/TrissBolt.gd")
+const TRISS_ORB  := preload("res://scripts/TrissOrb.gd")
+
+# Fase 1: 2 orbs orbitando, volley de 2 bolts a cada 3.5s
+# Fase 2: 3 orbs, volley de 3 bolts a cada 2.0s, bolts mais rápidos
+const VOLLEY_CD    := 3.5
+const VOLLEY_CD_P2 := 2.0
+const BOLT_DMG     := 14.0
+const BOLT_DMG_P2  := 20.0
+const BOLT_SPEED   := 185.0
+const BOLT_SPEED_P2:= 240.0
+const SPREAD_DEG   := 22.0   # graus entre bolts do volley
+
 var MAX_HEALTH      := 280.0
 var DAMAGE          := 28.0
 var MOVE_SPEED      := 75.0
@@ -32,6 +45,8 @@ var is_dead           := false
 var _phase2_triggered := false
 var _frenzy_applied   := false
 var _damage_timer     := 0.0
+var _volley_timer     := 2.0   # delay inicial antes do primeiro volley
+var _orbs: Array      = []
 var _player: Node     = null
 var _last_facing      := "S"
 var _col_shape: CollisionShape2D
@@ -47,6 +62,10 @@ func _ready() -> void:
 	_setup_sprite()
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
+	_spawn_orbs(2)
+	# Risada logo após spawnar (diálogo já terminou)
+	await get_tree().create_timer(0.4).timeout
+	AudioManager.play_sfx("triss_laugh")
 
 func _setup_sprite() -> void:
 	var tex: Texture2D = load(SPRITE_PATH)
@@ -97,6 +116,13 @@ func _physics_process(delta: float) -> void:
 			AudioManager.play_sfx("enemy_attack")
 			_player.take_damage(DAMAGE, Vector2.ZERO)
 
+	# Volley de bolts teleguiados
+	var vcd := VOLLEY_CD_P2 if _phase2_triggered else VOLLEY_CD
+	_volley_timer -= delta
+	if _volley_timer <= 0.0:
+		_volley_timer = vcd
+		_fire_volley(player_node)
+
 	z_index = int(global_position.y / 8.0)
 
 func _resolve_facing(d: Vector2) -> String:
@@ -144,11 +170,48 @@ func take_damage(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
 func receive_hit(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
 	take_damage(amount, direction)
 
+func _spawn_orbs(count: int) -> void:
+	for i in count:
+		var orb := TRISS_ORB.new()
+		orb.set_initial_angle(i * TAU / count)
+		add_child(orb)
+		_orbs.append(orb)
+
+func _fire_volley(target: Node2D) -> void:
+	if not is_inside_tree() or target == null:
+		return
+	var count   := 3 if _phase2_triggered else 2
+	var base_dir := (target.global_position - global_position).normalized()
+	var spd     := BOLT_SPEED_P2 if _phase2_triggered else BOLT_SPEED
+	var dmg     := BOLT_DMG_P2  if _phase2_triggered else BOLT_DMG
+	var spread  := deg_to_rad(SPREAD_DEG)
+	# Distribui os bolts em fan centrado na direção do jogador
+	for i in count:
+		var offset_angle := (i - (count - 1) / 2.0) * spread
+		var bolt          := TRISS_BOLT.new()
+		bolt.direction     = base_dir.rotated(offset_angle)
+		bolt.speed         = spd
+		bolt.damage        = dmg
+		bolt.global_position = global_position
+		get_parent().add_child(bolt)
+	AudioManager.play_sfx("triss_attack")
+	var flash := create_tween()
+	flash.tween_property(self, "modulate", Color(1.6, 0.4, 2.0, 1.0), 0.07)
+	flash.tween_property(self, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.22)
+
 func _trigger_phase2() -> void:
 	_phase2_triggered = true
 	MOVE_SPEED      *= 1.6
 	DAMAGE_INTERVAL  = 0.7
-	var tween        := create_tween()
+	# Adiciona 3º orb e acelera todos
+	for orb in _orbs:
+		if is_instance_valid(orb):
+			orb.orbit_speed *= 1.7
+			orb.damage      *= 1.4
+	_spawn_orbs(1)   # terceiro orb começa na posição intermediária
+	if not _orbs.is_empty() and is_instance_valid(_orbs.back()):
+		_orbs.back().set_initial_angle(TAU * 2.0 / 3.0)
+	var tween := create_tween()
 	tween.tween_property(self, "modulate", Color(2.0, 0.5, 2.0, 1.0), 0.1)
 	tween.tween_property(self, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.5)
 	JuiceManager.add_trauma(0.45)
@@ -166,6 +229,10 @@ func _die() -> void:
 	set_physics_process(false)
 	_col_shape.set_deferred("disabled", true)
 	_sprite.stop()
+	if is_inside_tree():
+		for bolt in get_tree().get_nodes_in_group("triss_projectiles"):
+			if is_instance_valid(bolt):
+				bolt.queue_free()
 	ProgressionManager.add_xp(xp_reward)
 	ProgressionManager.add_fragments(randi_range(12, 25) if is_boss else randi_range(2, 5))
 	AudioManager.play_sfx("enemy_die")
