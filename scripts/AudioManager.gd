@@ -11,13 +11,16 @@ const SFX_PATHS := {
 	"hp_drain":      "res://assets/audio/sfx_hp_drain.ogg",
 	"enemy_die":     "res://assets/audio/sfx_enemy_die.ogg",
 	"boss_phase2":   "res://assets/audio/sfx_boss_phase2.ogg",
+	"triss_laugh":   "res://assets/audio/enemies/triss/risada/master_of_dreams_laugh_1_462-_1_.ogg",
+	"triss_attack":  "res://assets/audio/enemies/triss/atacando/lukas_tvrdon_kali_attack_scream_fanatic_3_104.ogg",
 }
 const BTN_SFX_PATH      := "res://assets/audio/botoes/hover_click/sound_ex_machina_Buttons-Stone-Button.wav"
 const FOOTSTEP_PATH     := "res://assets/audio/jogador/walk/fase_01/zapsplat_foley_footsteps_barefoot_walking_artificial_grass_106409.ogg"
 const SKILL_Q_PATH      := "res://assets/audio/jogador/skills/blood_mage/data_pion-sfx28-attack-338386.ogg"
 const AMBIENT_PATH    := "res://assets/audio/ambient_forest.ogg"
 const WAVE_MUSIC_PATH := "res://assets/audio/waves/LVS04_10_Battlefield_bpm180_loop.wav"
-const BOSS_MUSIC_PATH := "res://assets/audio/waves/wave_boss/DavidKBD-01 - Grave Rot Requiem.ogg"
+const BOSS_MUSIC_PATH  := "res://assets/audio/waves/wave_boss/DavidKBD-01 - Grave Rot Requiem.ogg"
+const BOSS3_MUSIC_PATH := "res://assets/audio/waves/wave_boss_lesss/4. Cursed Citadel .ogg"
 
 var _players: Dictionary = {}
 var _ambient: AudioStreamPlayer
@@ -136,6 +139,9 @@ func play_wave_music() -> void:
 
 func play_boss_music() -> void:
 	_play_music(BOSS_MUSIC_PATH)
+
+func play_boss3_music() -> void:
+	_play_music(BOSS3_MUSIC_PATH)
 
 func stop_music() -> void:
 	_music.stop()

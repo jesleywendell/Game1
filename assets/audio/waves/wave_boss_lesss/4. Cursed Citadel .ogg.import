@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://c2gnq8oioirdq"
+path="res://.godot/imported/4. Cursed Citadel .ogg-ccbec9dd7ada818eb6a6712508fd81bb.oggvorbisstr"
+
+[deps]
+
+source_file="res://assets/audio/waves/wave_boss_lesss/4. Cursed Citadel .ogg"
+dest_files=["res://.godot/imported/4. Cursed Citadel .ogg-ccbec9dd7ada818eb6a6712508fd81bb.oggvorbisstr"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
