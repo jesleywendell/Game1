@@ -13,14 +13,17 @@ signal died
 @export var attack_hitbox_distance: float = 42.0
 @export var max_health: float = 100.0
 
-const FRAME_W := 175
-const FRAME_H := 131
-const WALK_COLS := 4
-const WALK_FPS  := 8.0
-const AZRAEL_PATH   := "res://assets/protagonista/walk/azrael_walk.png"
-const DASH_VFX      := preload("res://scripts/DashVFX.gd")
-# Ordem das linhas na sheet: DOWN, DOWN-LEFT, LEFT, UP-LEFT, UP, UP-RIGHT, RIGHT, DOWN-RIGHT
-const WALK_ROW_ORDER: Array[String] = ["S","SW","W","NW","N","NE","E","SE"]
+const SPRITE_PATH    := "res://assets/protagonista/walk_2/spritesheet_personagem1.png"
+const FRAME_W        := 64
+const FRAME_H        := 64
+const WALK_COLS      := 8
+const WALK_FPS       := 10.0
+const SLASH_FPS      := 14.0
+const SLASH_FRAMES   := 7
+const DASH_VFX       := preload("res://scripts/DashVFX.gd")
+# Row 1=S, 2=SE, 3=E, 4=N — SW/W/NW/NE/NW use E/SE as base with flip_h
+# Row 5 = death animation (reserved)
+const BASE_WALK_DIRS: Array[String] = ["S", "SE", "E", "N"]
 const INVINCIBILITY_DURATION := 0.6
 const KNOCKBACK_FORCE := 120.0
 const REGEN_DELAY  := 10.0
@@ -45,6 +48,7 @@ var attack_cooldown_timer := 0.0
 var attack_hit_active := false
 var hit_targets: Array[Node] = []
 var attack_requested := false
+var _slash_vfx: AnimatedSprite2D = null
 var _invincibility_timer := 0.0
 var _base_dash_cooldown := 0.0
 var _temp_damage_bonus  := 0.0
@@ -67,6 +71,7 @@ func _ready() -> void:
 	_base_dash_cooldown = dash_cooldown
 	_apply_stats()
 	_setup_azrael_animations()
+	_setup_slash_vfx()
 	_disable_attack_hitbox()
 	(attack_shape.shape as RectangleShape2D).size = Vector2(56, 40)
 	health_changed.emit(current_health, max_health)
@@ -88,23 +93,55 @@ func _apply_stats() -> void:
 	health_changed.emit(current_health, max_health)
 
 func _setup_azrael_animations() -> void:
+	var tex: Texture2D = load(SPRITE_PATH)
 	var frames := SpriteFrames.new()
-	var tex: Texture2D = load(AZRAEL_PATH)
-	for row_idx in WALK_ROW_ORDER.size():
-		var anim := "walk_" + WALK_ROW_ORDER[row_idx]
+	# Row 0: idle/static poses — sprite frozen on frame 0 of walk handles idle
+	# Walk rows 1-5: S, SE, E, N, NE — SW/W/NW are flip_h mirrors of SE/E/NE
+	for row_idx in BASE_WALK_DIRS.size():
+		var anim := "walk_" + BASE_WALK_DIRS[row_idx]
 		frames.add_animation(anim)
 		frames.set_animation_speed(anim, WALK_FPS)
 		frames.set_animation_loop(anim, true)
 		for col in WALK_COLS:
 			var atlas := AtlasTexture.new()
 			atlas.atlas = tex
-			atlas.region = Rect2(col * FRAME_W, row_idx * FRAME_H, FRAME_W, FRAME_H)
+			atlas.region = Rect2(col * FRAME_W, (row_idx + 1) * FRAME_H, FRAME_W, FRAME_H)
 			frames.add_frame(anim, atlas)
+	# Death animation (row 5, 10 frames, plays once)
+	frames.add_animation("death")
+	frames.set_animation_speed("death", 8.0)
+	frames.set_animation_loop("death", false)
+	for col in 10:
+		var death_atlas := AtlasTexture.new()
+		death_atlas.atlas = tex
+		death_atlas.region = Rect2(col * FRAME_W, 5 * FRAME_H, FRAME_W, FRAME_H)
+		frames.add_frame("death", death_atlas)
 	sprite.sprite_frames = frames
 	sprite.centered = false
-	sprite.scale = Vector2(0.5, 0.5)
-	sprite.offset = Vector2(-FRAME_W / 2.0, -FRAME_H)
-	sprite.play("walk_" + last_facing)
+	sprite.scale = Vector2(1.0, 1.0)
+	sprite.offset = Vector2(-float(FRAME_W) / 2.0, -float(FRAME_H))
+	sprite.play("walk_S")
+	last_facing = "S"
+
+func _setup_slash_vfx() -> void:
+	var tex: Texture2D = load(SPRITE_PATH)
+	var frames := SpriteFrames.new()
+	frames.add_animation("slash")
+	frames.set_animation_speed("slash", SLASH_FPS)
+	frames.set_animation_loop("slash", false)
+	for col in SLASH_FRAMES:
+		var atlas := AtlasTexture.new()
+		atlas.atlas = tex
+		atlas.region = Rect2(col * FRAME_W, 6 * FRAME_H, FRAME_W, FRAME_H)
+		frames.add_frame("slash", atlas)
+	_slash_vfx = AnimatedSprite2D.new()
+	_slash_vfx.sprite_frames = frames
+	_slash_vfx.centered = true
+	_slash_vfx.z_index = 2
+	_slash_vfx.scale = Vector2(1.8, 1.8)
+	_slash_vfx.visible = false
+	_slash_vfx.animation_finished.connect(func(): _slash_vfx.visible = false)
+	add_child(_slash_vfx)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
@@ -162,7 +199,6 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 	_update_animation(move_dir)
-	queue_redraw()
 
 	var walking := move_dir != Vector2.ZERO and not is_dashing and not is_attacking
 	if walking:
@@ -171,6 +207,9 @@ func _physics_process(delta: float) -> void:
 		AudioManager.stop_footsteps()
 
 func _update_animation(move_dir: Vector2) -> void:
+	if is_attacking:
+		return
+
 	var visual_dir := move_dir
 	if visual_dir == Vector2.ZERO and is_dashing:
 		visual_dir = dash_direction
@@ -178,7 +217,11 @@ func _update_animation(move_dir: Vector2) -> void:
 	if visual_dir != Vector2.ZERO:
 		last_facing = _resolve_facing(visual_dir)
 
-	var anim := "walk_" + last_facing
+	var flip := last_facing in ["SW", "W", "NW"]
+	var base: String = {"SW": "SE", "W": "E", "NW": "E", "NE": "E"}.get(last_facing, last_facing)
+	var anim := "walk_" + base
+	sprite.flip_h = flip
+
 	if visual_dir == Vector2.ZERO and not is_dashing:
 		if sprite.is_playing() or sprite.animation != anim:
 			sprite.animation = anim
@@ -187,7 +230,6 @@ func _update_animation(move_dir: Vector2) -> void:
 	else:
 		if sprite.animation != anim or not sprite.is_playing():
 			sprite.play(anim)
-	sprite.flip_h = false
 
 func start_dash(direction: Vector2) -> void:
 	if is_attacking:
@@ -234,6 +276,13 @@ func _start_attack() -> void:
 	hit_targets.clear()
 	AudioManager.play_sfx("attack")
 	_enable_attack_hitbox(attack_direction)
+	sprite.flip_h = last_facing in ["SW", "W", "NW"]
+	sprite.stop()
+	if is_instance_valid(_slash_vfx):
+		_slash_vfx.position = attack_direction.normalized() * (attack_hitbox_distance + 10.0)
+		_slash_vfx.rotation = attack_direction.angle()
+		_slash_vfx.visible = true
+		_slash_vfx.play("slash")
 
 func _update_attack(delta: float) -> void:
 	attack_timer -= delta
@@ -262,15 +311,6 @@ func _apply_attack_damage() -> void:
 			continue
 		_damage_target(area)
 
-func _draw() -> void:
-	if is_attacking and attack_timer > 0.0:
-		var progress := 1.0 - (attack_timer / attack_duration)
-		var alpha    := 1.0 - progress
-		var base_angle := attack_direction.angle()
-		var half_arc   := deg_to_rad(55.0)
-		draw_arc(Vector2.ZERO, attack_hitbox_distance + 8.0,
-			base_angle - half_arc, base_angle + half_arc,
-			20, Color(1.0, 0.85, 0.3, alpha * 0.9), 3.0)
 
 func take_damage(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
 	if is_dead or _invincibility_timer > 0.0:
@@ -314,12 +354,29 @@ func _flash_hit() -> void:
 	tween.tween_property(sprite, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.15)
 
 func _die() -> void:
+	if is_dead:
+		return
 	is_dead = true
 	AudioManager.stop_footsteps()
 	AudioManager.play_sfx("player_die")
 	set_physics_process(false)
-	died.emit()
+	JuiceManager.add_trauma(0.6)
+	# Limpa todos os inimigos da cena
+	if is_inside_tree():
+		for enemy in get_tree().get_nodes_in_group("active_enemies"):
+			if is_instance_valid(enemy):
+				enemy.queue_free()
+		for fly in get_tree().get_nodes_in_group("summoned_flies"):
+			if is_instance_valid(fly):
+				fly.queue_free()
+	# Toca animação de morte (row 5, 10 frames @ 8fps ≈ 1.25s)
 	sprite.modulate.a = 1.0
+	sprite.flip_h = false
+	sprite.play("death")
+	var tween := create_tween()
+	tween.tween_interval(10.0 / 8.0)
+	tween.tween_property(sprite, "modulate:a", 0.0, 0.4)
+	tween.tween_callback(func(): died.emit())
 
 func _damage_target(target: Node) -> void:
 	if target == self or hit_targets.has(target):
