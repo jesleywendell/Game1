@@ -6,7 +6,10 @@ const DAMAGE_INTERVAL := 0.85
 const LIFETIME        := 20.0
 const BODY_RADIUS     := 5.5
 const WING_RADIUS     := 5.0
+const MAX_HEALTH      := 15.0
 
+var current_health := MAX_HEALTH
+var is_dead        := false
 var _damage_timer  := 0.0
 var _life_timer    := LIFETIME
 var _player: Node  = null
@@ -112,9 +115,19 @@ func _draw() -> void:
 	draw_circle(Vector2(-1.8, -5.2), 1.1, Color(0.90, 0.05, 0.05, 1.0))
 	draw_circle(Vector2( 1.8, -5.2), 1.1, Color(0.90, 0.05, 0.05, 1.0))
 
-func die_fade() -> void:
-	if not is_inside_tree():
+func take_damage(amount: float, _direction: Vector2 = Vector2.ZERO) -> void:
+	if is_dead or not _moving:
 		return
+	current_health = maxf(current_health - amount, 0.0)
+	JuiceManager.spawn_blood(global_position, get_parent())
+	JuiceManager.spawn_damage_number(amount, global_position, get_parent())
+	if current_health <= 0.0:
+		die_fade()
+
+func die_fade() -> void:
+	if is_dead or not is_inside_tree():
+		return
+	is_dead = true
 	_moving = false
 	_player = null
 	_col.set_deferred("disabled", true)
