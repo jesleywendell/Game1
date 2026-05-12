@@ -4,6 +4,7 @@ signal wave_started(wave_number: int)
 signal wave_cleared(wave_number: int)
 signal area_cleared()
 signal boss_spawned()
+signal boss_intro_requested(area: int)
 signal enemy_killed()
 signal timer_tick(remaining: float)
 signal frenzy_started()
@@ -143,12 +144,16 @@ func _check_wave_clear() -> void:
 		return
 	_combat_active = false
 	if current_wave >= ARENA_TOTAL:
-		await get_tree().create_timer(2.0).timeout
-		_spawn_boss()
+		await get_tree().create_timer(0.8).timeout
+		_boss_alive = true
+		boss_intro_requested.emit(ProgressionManager.get_current_area())
 	else:
 		wave_cleared.emit(current_wave)
 
-func _spawn_boss() -> void:
+func execute_boss_spawn() -> void:
+	_do_spawn_boss()
+
+func _do_spawn_boss() -> void:
 	var area       := ProgressionManager.get_current_area()
 	var area_scale := 1.0 + (area - 1) * 0.5
 	var boss: Node
@@ -172,7 +177,6 @@ func _spawn_boss() -> void:
 	boss.is_boss        = true
 	boss.add_to_group("active_enemies")
 	boss.tree_exited.connect(_on_boss_died)
-	_boss_alive = true
 	_world.add_child(boss)
 	boss_spawned.emit()
 
