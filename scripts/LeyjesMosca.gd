@@ -11,6 +11,11 @@ const BOSS_SCALE := 2.0
 
 const ROW_DIRS := ["S", "SE", "E", "NE", "N"]
 
+const SUMMON_FLY      := preload("res://scripts/SummonedFly.gd")
+const SUMMON_CD_P1    := 9.0
+const SUMMON_CD_P2    := 5.0
+const MAX_FLIES       := 6
+
 const MAP_X := Vector2(-1600.0, 2080.0)
 const MAP_Y := Vector2(8.0, 1848.0)
 const DETECT_RANGE := 450.0
@@ -32,6 +37,8 @@ var is_dead           := false
 var _phase2_triggered := false
 var _frenzy_applied   := false
 var _damage_timer     := 0.0
+var _summon_timer     := 5.0
+var _summon_cd        := SUMMON_CD_P1
 var _player: Node     = null
 var _last_facing      := "S"
 var _col_shape: CollisionShape2D
@@ -97,6 +104,12 @@ func _physics_process(delta: float) -> void:
 			AudioManager.play_sfx("enemy_attack")
 			_player.take_damage(DAMAGE, Vector2.ZERO)
 
+	if is_boss:
+		_summon_timer -= delta
+		if _summon_timer <= 0.0:
+			_do_summon()
+			_summon_timer = _summon_cd
+
 	z_index = int(global_position.y / 8.0)
 
 func _resolve_facing(d: Vector2) -> String:
@@ -144,8 +157,29 @@ func take_damage(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
 func receive_hit(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
 	take_damage(amount, direction)
 
+func _do_summon() -> void:
+	var alive := get_tree().get_nodes_in_group("summoned_flies").size()
+	if alive >= MAX_FLIES:
+		return
+	var count := 3 if _phase2_triggered else 2
+	count = mini(count, MAX_FLIES - alive)
+
+	var flash := create_tween()
+	flash.tween_property(self, "modulate", Color(0.55, 0.20, 1.00, 1.0), 0.08)
+	flash.tween_property(self, "modulate", Color(1.00, 1.00, 1.00, 1.0), 0.40)
+	JuiceManager.add_trauma(0.12)
+
+	for i in count:
+		var angle  := randf() * TAU
+		var dist   := randf_range(55.0, 105.0)
+		var offset := Vector2(cos(angle), sin(angle)) * dist
+		var fly    := SUMMON_FLY.new()
+		fly.global_position = global_position + offset
+		get_parent().add_child(fly)
+
 func _trigger_phase2() -> void:
 	_phase2_triggered = true
+	_summon_cd       = SUMMON_CD_P2
 	MOVE_SPEED      *= 1.7
 	DAMAGE          *= 1.3
 	DAMAGE_INTERVAL  = 0.65
@@ -167,6 +201,9 @@ func _die() -> void:
 	set_physics_process(false)
 	_col_shape.set_deferred("disabled", true)
 	_sprite.stop()
+	for fly in get_tree().get_nodes_in_group("summoned_flies"):
+		if fly.has_method("die_fade"):
+			fly.die_fade()
 	ProgressionManager.add_xp(xp_reward)
 	ProgressionManager.add_fragments(randi_range(20, 40) if is_boss else randi_range(3, 8))
 	AudioManager.play_sfx("enemy_die")
