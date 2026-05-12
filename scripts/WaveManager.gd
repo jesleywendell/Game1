@@ -144,8 +144,8 @@ func _check_wave_clear() -> void:
 		return
 	_combat_active = false
 	if current_wave >= ARENA_TOTAL:
-		await get_tree().create_timer(0.8).timeout
 		_boss_alive = true
+		await get_tree().create_timer(0.8).timeout
 		boss_intro_requested.emit(ProgressionManager.get_current_area())
 	else:
 		wave_cleared.emit(current_wave)

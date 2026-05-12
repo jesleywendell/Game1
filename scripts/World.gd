@@ -11,6 +11,7 @@ const VICTORY_SCREEN     := preload("res://scripts/VictoryScreen.gd")
 @onready var hud: CanvasLayer = $HUD
 
 var _wave_manager: Node
+var _boss_intro_fired := false
 var _enemies_killed: int = 0
 var _run_start_time: int = 0
 var _upgrade_panel: CanvasLayer
@@ -215,15 +216,21 @@ func _go_btn(parent: Control, path: String, x: float, y: float, w: float, h: flo
 	parent.add_child(btn)
 
 func _on_boss_intro_requested(area: int) -> void:
+	if _boss_intro_fired:
+		return
+	_boss_intro_fired = true
 	AudioManager.stop_music()
 	var dialogue = BOSS_DIALOGUE.new()
 	dialogue.setup(BOSS_DIALOGUE.get_lines(area))
 	add_child(dialogue)
-	dialogue.dialogue_finished.connect(_wave_manager.execute_boss_spawn)
+	dialogue.dialogue_finished.connect(_wave_manager.execute_boss_spawn, CONNECT_ONE_SHOT)
 
 func _on_boss_spawned() -> void:
 	hud.show_boss_label()
-	AudioManager.play_boss_music()
+	if ProgressionManager.get_current_area() >= 3:
+		AudioManager.play_boss3_music()
+	else:
+		AudioManager.play_boss_music()
 
 func _on_area_cleared() -> void:
 	if player.is_dead:
@@ -249,7 +256,7 @@ func _start_victory_sequence() -> void:
 func _on_jess_death_dialogue_done() -> void:
 	if is_instance_valid(_canvas_modulate):
 		var tw := create_tween()
-		tw.set_process_mode(Tween.TWEEN_PROCESS_ALWAYS)
+		tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 		tw.tween_property(_canvas_modulate, "color", Color(0.35, 0.30, 0.22), 3.2)
 	var monologue := AZRAEL_MONOLOGUE.new()
 	add_child(monologue)
