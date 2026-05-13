@@ -9,12 +9,16 @@ const WALK_COLS  := 8
 const WALK_FPS   := 8.0
 const BOSS_SCALE := 2.0
 
-const ROW_DIRS := ["S", "SE", "E", "NE", "N"]
+const ROW_DIRS := ["S", "SE", "E", "NE"]  # rows 1-4; row 0 = idle/facing (não usar para walk)
 
 const SUMMON_FLY      := preload("res://scripts/SummonedFly.gd")
 const SUMMON_CD_P1    := 9.0
 const SUMMON_CD_P2    := 5.0
 const MAX_FLIES       := 6
+
+const FIREBALL        := preload("res://scripts/LeyjesFireball.gd")
+const FIREBALL_CD_P1  := 5.5
+const FIREBALL_CD_P2  := 3.0
 
 const MAP_X := Vector2(-1600.0, 2080.0)
 const MAP_Y := Vector2(8.0, 1848.0)
@@ -39,6 +43,9 @@ var _frenzy_applied   := false
 var _damage_timer     := 0.0
 var _summon_timer     := 5.0
 var _summon_cd        := SUMMON_CD_P1
+var _fireball_timer   := 3.0
+var _fireball_cd      := FIREBALL_CD_P1
+var _blood_frames: Array[Texture2D] = []
 var _player: Node     = null
 var _last_facing      := "S"
 var _col_shape: CollisionShape2D
@@ -54,6 +61,8 @@ func _ready() -> void:
 	_setup_sprite()
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
+	await get_tree().create_timer(0.4).timeout
+	AudioManager.play_sfx("lejess_laugh")
 
 func _setup_sprite() -> void:
 	var tex: Texture2D = load(SPRITE_PATH)
@@ -66,16 +75,20 @@ func _setup_sprite() -> void:
 		for col in WALK_COLS:
 			var atlas        := AtlasTexture.new()
 			atlas.atlas       = tex
-			atlas.region      = Rect2(col * FRAME_W, row * FRAME_H, FRAME_W, FRAME_H)
+			atlas.region      = Rect2(col * FRAME_W, (row + 1) * FRAME_H, FRAME_W, FRAME_H)
 			frames.add_frame(anim, atlas)
 	_sprite                = AnimatedSprite2D.new()
 	_sprite.sprite_frames  = frames
 	_sprite.scale          = Vector2(BOSS_SCALE, BOSS_SCALE)
-	_sprite.centered       = false
-	_sprite.offset         = Vector2(-FRAME_W / 2.0, -FRAME_H)
+	_sprite.centered       = true
+	_sprite.offset         = Vector2(0.0, -FRAME_H / 2.0)
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_child(_sprite)
 	_sprite.play("walk_S")
+	for i in 25:
+		var path: String = "res://assets/enemies/lejyes_mosca/skills/Blood - Magic Effect/Blood-Magic-Effect_%02d.png" % (i + 1)
+		if ResourceLoader.exists(path):
+			_blood_frames.append(load(path) as Texture2D)
 
 func _physics_process(delta: float) -> void:
 	if not is_inside_tree() or is_dead:
@@ -109,6 +122,10 @@ func _physics_process(delta: float) -> void:
 		if _summon_timer <= 0.0:
 			_do_summon()
 			_summon_timer = _summon_cd
+		_fireball_timer -= delta
+		if _fireball_timer <= 0.0:
+			_fireball_timer = _fireball_cd
+			_fire_fireball(player_node)
 
 	z_index = int(global_position.y / 8.0)
 
@@ -118,17 +135,19 @@ func _resolve_facing(d: Vector2) -> String:
 	return DIRS[int((deg + 22.5) / 45.0) % 8]
 
 func _play_walk(facing: String) -> void:
-	var flip        := facing in ["SW", "W", "NW"]
-	const BASE      := {"SW": "SE", "W": "E", "NW": "NE"}
-	var anim: String = "walk_" + (BASE[facing] as String if flip else facing)
+	var flip := facing in ["SW", "W", "NW"]
+	const REMAP := {"SW": "SE", "W": "E", "NW": "NE", "N": "NE"}
+	var dir: String = REMAP[facing] if REMAP.has(facing) else facing
+	var anim: String = "walk_" + dir
 	_sprite.flip_h = flip
 	if _sprite.animation != anim or not _sprite.is_playing():
 		_sprite.play(anim)
 
 func _play_idle(facing: String) -> void:
-	var flip        := facing in ["SW", "W", "NW"]
-	const BASE      := {"SW": "SE", "W": "E", "NW": "NE"}
-	var anim: String = "walk_" + (BASE[facing] as String if flip else facing)
+	var flip := facing in ["SW", "W", "NW"]
+	const REMAP := {"SW": "SE", "W": "E", "NW": "NE", "N": "NE"}
+	var dir: String = REMAP[facing] if REMAP.has(facing) else facing
+	var anim: String = "walk_" + dir
 	_sprite.flip_h = flip
 	if _sprite.animation != anim:
 		_sprite.animation = anim
@@ -164,6 +183,7 @@ func _do_summon() -> void:
 	var count := 3 if _phase2_triggered else 2
 	count = mini(count, MAX_FLIES - alive)
 
+	AudioManager.play_sfx("lejess_attack")
 	var flash := create_tween()
 	flash.tween_property(self, "modulate", Color(0.55, 0.20, 1.00, 1.0), 0.08)
 	flash.tween_property(self, "modulate", Color(1.00, 1.00, 1.00, 1.0), 0.40)
@@ -173,13 +193,16 @@ func _do_summon() -> void:
 		var angle  := randf() * TAU
 		var dist   := randf_range(55.0, 105.0)
 		var offset := Vector2(cos(angle), sin(angle)) * dist
+		var pos    := global_position + offset
+		_spawn_blood_vfx(pos)
 		var fly    := SUMMON_FLY.new()
-		fly.global_position = global_position + offset
+		fly.global_position = pos
 		get_parent().add_child(fly)
 
 func _trigger_phase2() -> void:
 	_phase2_triggered = true
 	_summon_cd       = SUMMON_CD_P2
+	_fireball_cd     = FIREBALL_CD_P2
 	MOVE_SPEED      *= 1.7
 	DAMAGE          *= 1.3
 	DAMAGE_INTERVAL  = 0.65
@@ -204,6 +227,9 @@ func _die() -> void:
 	for fly in get_tree().get_nodes_in_group("summoned_flies"):
 		if fly.has_method("die_fade"):
 			fly.die_fade()
+	for fb in get_tree().get_nodes_in_group("lejess_projectiles"):
+		if is_instance_valid(fb):
+			fb.queue_free()
 	ProgressionManager.add_xp(xp_reward)
 	ProgressionManager.add_fragments(randi_range(20, 40) if is_boss else randi_range(3, 8))
 	AudioManager.play_sfx("enemy_die")
@@ -216,6 +242,42 @@ func _die() -> void:
 	var tween := create_tween()
 	tween.tween_property(self, "modulate:a", 0.0, 0.5)
 	tween.tween_callback(queue_free)
+
+func _fire_fireball(target: Node2D) -> void:
+	if not is_inside_tree() or target == null:
+		return
+	var base_dir := (target.global_position - global_position).normalized()
+	var count    := 2 if _phase2_triggered else 1
+	var spd      := 200.0 if _phase2_triggered else 150.0
+	var dmg      := 28.0  if _phase2_triggered else 22.0
+	var spread   := deg_to_rad(20.0)
+	for i in count:
+		var offset_angle := (i - (count - 1) / 2.0) * spread
+		var fb            := FIREBALL.new()
+		fb.direction       = base_dir.rotated(offset_angle)
+		fb.speed           = spd
+		fb.damage          = dmg
+		fb.global_position = global_position
+		get_parent().add_child(fb)
+
+func _spawn_blood_vfx(pos: Vector2) -> void:
+	if _blood_frames.is_empty():
+		return
+	var sf := SpriteFrames.new()
+	sf.add_animation("play")
+	sf.set_animation_speed("play", 14.0)
+	sf.set_animation_loop("play", false)
+	for tex in _blood_frames:
+		sf.add_frame("play", tex)
+	var spr              := AnimatedSprite2D.new()
+	spr.sprite_frames     = sf
+	spr.scale             = Vector2(1.2, 1.2)
+	spr.texture_filter    = CanvasItem.TEXTURE_FILTER_LINEAR
+	spr.z_index           = 4
+	get_parent().add_child(spr)
+	spr.global_position   = pos
+	spr.play("play")
+	spr.animation_finished.connect(spr.queue_free)
 
 func apply_frenzy() -> void:
 	if _frenzy_applied:
