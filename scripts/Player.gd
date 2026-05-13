@@ -1,36 +1,50 @@
 extends CharacterBody2D
 
+signal health_changed(current: float, maximum: float)
+signal died
+
 @export var speed: float = 200.0
 @export var dash_speed: float = 700.0
 @export var dash_time: float = 0.15
-@export var dash_cooldown: float = 1
-@export var attack_damage: float = 1.0
+@export var dash_cooldown: float = 1.0
+@export var attack_damage: float = 15.0
 @export var attack_duration: float = 0.35
 @export var attack_cooldown: float = 0.2
-@export var attack_hitbox_distance: float = 28.0
+@export var attack_hitbox_distance: float = 42.0
+@export var max_health: float = 100.0
 
-const FRAME_W := 64
-const FRAME_H := 64
-const IDLE_FRAME_COUNT := 4
-const RUN_FRAME_COUNT := 8
-const BITE_FRAME_COUNT := 15
-const WOLF_IDLE_PATH := "res://assets/critters/critters/wolf/wolf-idle.png"
-const WOLF_RUN_PATH := "res://assets/critters/critters/wolf/wolf-run.png"
-const WOLF_BITE_PATH := "res://assets/critters/critters/wolf/wolf-bite.png"
-const DIR_SW := "sw"
-const DIR_SE := "se"
-const DIR_NW := "nw"
-const DIR_NE := "ne"
-const DIRECTION_ROWS := {
-	DIR_SW: 0,
-	DIR_SE: 1,
-	DIR_NW: 2,
-	DIR_NE: 3,
-}
+const SPRITE_PATH    := "res://assets/protagonista/walk_2/spritesheet_personagem1.png"
+const FRAME_W        := 64
+const FRAME_H        := 64
+const WALK_COLS      := 8
+const WALK_FPS       := 10.0
+const SLASH_FPS      := 14.0
+const SLASH_FRAMES   := 7
+const DASH_VFX       := preload("res://scripts/DashVFX.gd")
+# Row 1=S, 2=SE, 3=E, 4=N — SW/W/NW/NE/NW use E/SE as base with flip_h
+# Row 5 = death animation (reserved)
+const BASE_WALK_DIRS: Array[String] = ["S", "SE", "E", "N"]
+const INVINCIBILITY_DURATION := 0.6
+const KNOCKBACK_FORCE := 120.0
+const REGEN_DELAY  := 10.0
+const REGEN_AMOUNT := 10.0
+const REGEN_TICK   := 1.0
+const MASH_REQUIRED     := 18
+const SEIZURE_FAIL_TIME := 3.5
 
+var current_health: float
+var is_dead := false
+var _blood_seized     := false
+var _mash_count       := 0
+var _seizure_timer    := 0.0
+var _seizure_overlay  : CanvasLayer = null
+var _seizure_bar      : ProgressBar = null
+var _base_speed: float
+var _base_attack_damage: float
+var _base_max_health: float
 var dash_direction := Vector2.ZERO
 var last_move_dir := Vector2.DOWN
-var last_facing := DIR_SE
+var last_facing := "SE"
 var is_dashing := false
 var is_attacking := false
 var attack_direction := Vector2.ZERO
@@ -41,61 +55,130 @@ var attack_cooldown_timer := 0.0
 var attack_hit_active := false
 var hit_targets: Array[Node] = []
 var attack_requested := false
+var _slash_vfx: AnimatedSprite2D = null
+var _invincibility_timer := 0.0
+var _base_dash_cooldown := 0.0
+var _temp_damage_bonus  := 0.0
+var _temp_hp_bonus      := 0.0
+var _temp_speed_bonus   := 0.0
+var _temp_dash_cd_bonus  := 0.0
+var _no_damage_timer     := 0.0
+var _regen_tick_timer    := 0.0
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var attack_area: Area2D = $AttackArea2D
 @onready var attack_shape: CollisionShape2D = $AttackArea2D/CollisionShape2D
 @onready var skill_manager: Node = $SkillManager
+@onready var camera: Camera2D = $Camera2D
 
 func _ready() -> void:
-	_setup_wolf_animations()
+	_base_speed = speed
+	_base_attack_damage = attack_damage
+	_base_max_health = max_health
+	_base_dash_cooldown = dash_cooldown
+	_apply_stats()
+	_setup_azrael_animations()
+	_setup_slash_vfx()
 	_disable_attack_hitbox()
+	(attack_shape.shape as RectangleShape2D).size = Vector2(56, 40)
+	health_changed.emit(current_health, max_health)
+	camera.zoom = Vector2(2.0, 2.0)
+	ProgressionManager.upgrade_applied.connect(_apply_stats)
 
-func _setup_wolf_animations() -> void:
+func _apply_stats() -> void:
+	speed = ProgressionManager.get_speed(_base_speed) + _temp_speed_bonus
+	attack_damage = ProgressionManager.get_attack_damage(_base_attack_damage) + _temp_damage_bonus
+	dash_cooldown = maxf(0.3, _base_dash_cooldown - _temp_dash_cd_bonus)
+	var new_max := ProgressionManager.get_max_health(_base_max_health) + _temp_hp_bonus
+	if current_health == 0.0:
+		current_health = new_max
+	elif new_max > max_health:
+		current_health = minf(current_health + (new_max - max_health), new_max)
+	else:
+		current_health = minf(current_health, new_max)
+	max_health = new_max
+	health_changed.emit(current_health, max_health)
+
+func _setup_azrael_animations() -> void:
+	var tex: Texture2D = load(SPRITE_PATH)
 	var frames := SpriteFrames.new()
-	var idle_tex: Texture2D = load(WOLF_IDLE_PATH)
-	var run_tex: Texture2D = load(WOLF_RUN_PATH)
-	var bite_tex: Texture2D = load(WOLF_BITE_PATH)
-
-	for direction in DIRECTION_ROWS.keys():
-		var row: int = int(DIRECTION_ROWS[direction])
-		_add_animation(frames, "idle_" + direction, idle_tex, row, IDLE_FRAME_COUNT, 6.0)
-		_add_animation(frames, "run_" + direction, run_tex, row, RUN_FRAME_COUNT, 10.0)
-		_add_animation(frames, "bite_" + direction, bite_tex, row, BITE_FRAME_COUNT, 20.0, false)
-
+	# Row 0: idle/static poses — sprite frozen on frame 0 of walk handles idle
+	# Walk rows 1-5: S, SE, E, N, NE — SW/W/NW are flip_h mirrors of SE/E/NE
+	for row_idx in BASE_WALK_DIRS.size():
+		var anim := "walk_" + BASE_WALK_DIRS[row_idx]
+		frames.add_animation(anim)
+		frames.set_animation_speed(anim, WALK_FPS)
+		frames.set_animation_loop(anim, true)
+		for col in WALK_COLS:
+			var atlas := AtlasTexture.new()
+			atlas.atlas = tex
+			atlas.region = Rect2(col * FRAME_W, (row_idx + 1) * FRAME_H, FRAME_W, FRAME_H)
+			frames.add_frame(anim, atlas)
+	# Death animation (row 5, 10 frames, plays once)
+	frames.add_animation("death")
+	frames.set_animation_speed("death", 8.0)
+	frames.set_animation_loop("death", false)
+	for col in 10:
+		var death_atlas := AtlasTexture.new()
+		death_atlas.atlas = tex
+		death_atlas.region = Rect2(col * FRAME_W, 5 * FRAME_H, FRAME_W, FRAME_H)
+		frames.add_frame("death", death_atlas)
 	sprite.sprite_frames = frames
-	sprite.play("idle_" + last_facing)
+	sprite.centered = false
+	sprite.scale = Vector2(1.0, 1.0)
+	sprite.offset = Vector2(-float(FRAME_W) / 2.0, -float(FRAME_H))
+	sprite.play("walk_S")
+	last_facing = "S"
 
-func _add_animation(
-	frames: SpriteFrames,
-	name: String,
-	texture: Texture2D,
-	row: int,
-	frame_count: int,
-	fps: float,
-	loop: bool = true
-) -> void:
-	frames.add_animation(name)
-	frames.set_animation_speed(name, fps)
-	frames.set_animation_loop(name, loop)
-
-	for i in frame_count:
+func _setup_slash_vfx() -> void:
+	var tex: Texture2D = load(SPRITE_PATH)
+	var frames := SpriteFrames.new()
+	frames.add_animation("slash")
+	frames.set_animation_speed("slash", SLASH_FPS)
+	frames.set_animation_loop("slash", false)
+	for col in SLASH_FRAMES:
 		var atlas := AtlasTexture.new()
-		atlas.atlas = texture
-		atlas.region = Rect2(i * FRAME_W, row * FRAME_H, FRAME_W, FRAME_H)
-		frames.add_frame(name, atlas)
+		atlas.atlas = tex
+		atlas.region = Rect2(col * FRAME_W, 6 * FRAME_H, FRAME_W, FRAME_H)
+		frames.add_frame("slash", atlas)
+	_slash_vfx = AnimatedSprite2D.new()
+	_slash_vfx.sprite_frames = frames
+	_slash_vfx.centered = true
+	_slash_vfx.z_index = 2
+	_slash_vfx.scale = Vector2(1.8, 1.8)
+	_slash_vfx.visible = false
+	_slash_vfx.animation_finished.connect(func(): _slash_vfx.visible = false)
+	add_child(_slash_vfx)
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mouse_event := event as InputEventMouseButton
 		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
-			attack_requested = true
+			if _blood_seized:
+				_mash_count += 1
+				if is_instance_valid(_seizure_bar):
+					_seizure_bar.value = float(_mash_count) / MASH_REQUIRED * 100.0
+				if _mash_count >= MASH_REQUIRED:
+					_escape_seizure()
+				return
+			if not get_tree().paused and not is_dead:
+				attack_requested = true
 
 func _physics_process(delta: float) -> void:
+	if _invincibility_timer > 0.0:
+		_invincibility_timer -= delta
+		sprite.modulate.a = 0.4 if (int(_invincibility_timer * 10) % 2 == 1) else 1.0
+		if _invincibility_timer <= 0.0:
+			sprite.modulate.a = 1.0
+	if _blood_seized:
+		_seizure_timer -= delta
+		if _seizure_timer <= 0.0:
+			_seizure_fail()
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
 	var move_dir := _get_move_input()
 
-	# Skill input — must be before is_attacking/is_dashing/else block
-	# so skill_e is never suppressed by those states
 	if Input.is_action_just_pressed("skill_q"):
 		if not is_dashing and not is_attacking:
 			skill_manager.use_q(self)
@@ -107,6 +190,15 @@ func _physics_process(delta: float) -> void:
 	if attack_cooldown_timer > 0:
 		attack_cooldown_timer -= delta
 
+	if not is_dead and current_health < max_health:
+		_no_damage_timer += delta
+		if _no_damage_timer >= REGEN_DELAY:
+			_regen_tick_timer -= delta
+			if _regen_tick_timer <= 0.0:
+				_regen_tick_timer = REGEN_TICK
+				current_health = minf(current_health + REGEN_AMOUNT, max_health)
+				health_changed.emit(current_health, max_health)
+
 	if attack_requested and _can_start_attack():
 		_start_attack()
 	attack_requested = false
@@ -117,40 +209,48 @@ func _physics_process(delta: float) -> void:
 	elif is_dashing:
 		dash_timer -= delta
 		velocity = dash_direction * dash_speed
-
 		if dash_timer <= 0:
 			is_dashing = false
 	else:
 		velocity = move_dir * speed
-
 		if move_dir != Vector2.ZERO:
 			last_move_dir = move_dir
-
 		if Input.is_action_just_pressed("dash") and cooldown_timer <= 0:
 			start_dash(last_move_dir)
 
 	move_and_slide()
 	_update_animation(move_dir)
-	queue_redraw()
+
+	var walking := move_dir != Vector2.ZERO and not is_dashing and not is_attacking
+	if walking:
+		AudioManager.play_footsteps()
+	else:
+		AudioManager.stop_footsteps()
 
 func _update_animation(move_dir: Vector2) -> void:
+	if is_attacking:
+		return
+
 	var visual_dir := move_dir
 	if visual_dir == Vector2.ZERO and is_dashing:
 		visual_dir = dash_direction
 
-	var target_animation := ""
-	if is_attacking:
-		target_animation = "bite_" + last_facing
-	elif visual_dir != Vector2.ZERO:
+	if visual_dir != Vector2.ZERO:
 		last_facing = _resolve_facing(visual_dir)
-		target_animation = "run_" + last_facing
+
+	var flip := last_facing in ["SW", "W", "NW"]
+	var base: String = {"SW": "SE", "W": "E", "NW": "E", "NE": "E"}.get(last_facing, last_facing)
+	var anim := "walk_" + base
+	sprite.flip_h = flip
+
+	if visual_dir == Vector2.ZERO and not is_dashing:
+		if sprite.is_playing() or sprite.animation != anim:
+			sprite.animation = anim
+			sprite.stop()
+			sprite.frame = 0
 	else:
-		target_animation = "idle_" + last_facing
-
-	if sprite.animation != target_animation or not sprite.is_playing():
-		sprite.play(target_animation)
-
-	sprite.flip_h = false
+		if sprite.animation != anim or not sprite.is_playing():
+			sprite.play(anim)
 
 func start_dash(direction: Vector2) -> void:
 	if is_attacking:
@@ -159,6 +259,11 @@ func start_dash(direction: Vector2) -> void:
 	dash_timer = dash_time
 	cooldown_timer = dash_cooldown
 	dash_direction = direction.normalized()
+	AudioManager.play_sfx("dash")
+	var vfx := DASH_VFX.new()
+	vfx.global_position = global_position
+	vfx.rotation = dash_direction.angle()
+	get_tree().current_scene.add_child(vfx)
 
 func _get_move_input() -> Vector2:
 	var x := Input.get_axis("move_left", "move_right")
@@ -171,26 +276,10 @@ func _get_move_input() -> Vector2:
 func _resolve_facing(direction: Vector2) -> String:
 	if direction == Vector2.ZERO:
 		return last_facing
-
-	var x := signf(direction.x)
-	var y := signf(direction.y)
-
-	if y < 0.0:
-		if x > 0.0:
-			return DIR_NE
-		return DIR_NW
-
-	if y > 0.0:
-		if x < 0.0:
-			return DIR_SW
-		return DIR_SE
-
-	if x < 0.0:
-		return DIR_SW
-	if x > 0.0:
-		return DIR_NE
-
-	return last_facing
+	var deg := fmod(rad_to_deg(direction.angle()) + 360.0, 360.0)
+	# 0=E,45=SE,90=S,135=SW,180=W,225=NW,270=N,315=NE
+	const DIRS: Array[String] = ["E","SE","S","SW","W","NW","N","NE"]
+	return DIRS[int((deg + 22.5) / 45.0) % 8]
 
 func _can_start_attack() -> bool:
 	return not is_attacking and not is_dashing and attack_cooldown_timer <= 0.0
@@ -204,20 +293,24 @@ func _start_attack() -> void:
 		attack_direction = last_move_dir.normalized()
 	if attack_direction == Vector2.ZERO:
 		attack_direction = Vector2(1, 0)
-
 	last_facing = _resolve_facing(attack_direction)
 	hit_targets.clear()
+	AudioManager.play_sfx("attack")
 	_enable_attack_hitbox(attack_direction)
+	sprite.flip_h = last_facing in ["SW", "W", "NW"]
+	sprite.stop()
+	if is_instance_valid(_slash_vfx):
+		_slash_vfx.position = attack_direction.normalized() * (attack_hitbox_distance + 10.0)
+		_slash_vfx.rotation = attack_direction.angle()
+		_slash_vfx.visible = true
+		_slash_vfx.play("slash")
 
 func _update_attack(delta: float) -> void:
 	attack_timer -= delta
-
 	if attack_hit_active:
 		_apply_attack_damage()
-
 	if attack_timer <= attack_duration * 0.45 and attack_hit_active:
 		_disable_attack_hitbox()
-
 	if attack_timer <= 0.0:
 		is_attacking = false
 		_disable_attack_hitbox()
@@ -239,16 +332,170 @@ func _apply_attack_damage() -> void:
 			continue
 		_damage_target(area)
 
-func _draw() -> void:
-	if skill_manager and skill_manager.skill_q_active_timer > 0.0:
-		draw_arc(Vector2.ZERO, 80.0, 0.0, TAU, 32, Color(0.6, 0.0, 1.0, 0.8), 2.0)
+
+func take_damage(amount: float, direction: Vector2 = Vector2.ZERO) -> void:
+	if is_dead or _invincibility_timer > 0.0:
+		return
+	current_health = maxf(current_health - amount, 0.0)
+	_invincibility_timer = INVINCIBILITY_DURATION
+	_no_damage_timer = 0.0
+	_regen_tick_timer = REGEN_TICK
+	health_changed.emit(current_health, max_health)
+	_flash_hit()
+	AudioManager.play_sfx("damage_player")
+	JuiceManager.add_trauma(0.45)
+	JuiceManager.spawn_blood(global_position, get_parent())
+	JuiceManager.spawn_damage_number(amount, global_position, get_parent(), true)
+	if direction != Vector2.ZERO:
+		velocity += direction.normalized() * KNOCKBACK_FORCE
+	if current_health <= 0.0:
+		_die()
+
+func apply_temp_upgrade(type: String) -> void:
+	match type:
+		"damage":  _temp_damage_bonus  += attack_damage * 0.10
+		"health":  _temp_hp_bonus      += 15.0
+		"speed":   _temp_speed_bonus   += speed * 0.10
+		"dash_cd": _temp_dash_cd_bonus += 0.2
+	_apply_stats()
+
+func drain_hp(amount: float) -> void:
+	current_health = max(0.0, current_health - amount)
+	health_changed.emit(current_health, max_health)
+	if current_health <= 0.0:
+		_die()
+
+func heal(amount: float) -> void:
+	current_health = minf(current_health + amount, max_health)
+	health_changed.emit(current_health, max_health)
+
+func apply_blood_seizure() -> void:
+	if _blood_seized or is_dead:
+		return
+	_blood_seized  = true
+	_mash_count    = 0
+	_seizure_timer = SEIZURE_FAIL_TIME
+	sprite.modulate = Color(1.2, 0.2, 0.2, 1.0)
+	AudioManager.play_sfx("damage_player")
+	JuiceManager.add_trauma(0.3)
+	_create_seizure_overlay()
+
+func _create_seizure_overlay() -> void:
+	var cl := CanvasLayer.new()
+	cl.layer = 15
+	cl.name  = "BloodSeizureOverlay"
+
+	var vignette := ColorRect.new()
+	vignette.color = Color(0.5, 0.0, 0.0, 0.35)
+	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	cl.add_child(vignette)
+
+	var lbl := Label.new()
+	lbl.text = "O SANGUE O CONSUMIU"
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.15, 0.15))
+	lbl.add_theme_font_size_override("font_size", 28)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	lbl.position.y = 280.0
+	cl.add_child(lbl)
+
+	var hint := Label.new()
+	hint.text = "CLIQUE RÁPIDO PARA ESCAPAR!"
+	hint.add_theme_color_override("font_color", Color(1.0, 0.6, 0.6))
+	hint.add_theme_font_size_override("font_size", 14)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	hint.position.y = 320.0
+	cl.add_child(hint)
+
+	var bar := ProgressBar.new()
+	bar.max_value           = 100.0
+	bar.value               = 0.0
+	bar.custom_minimum_size = Vector2(300.0, 24.0)
+	bar.show_percentage     = false
+	bar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	bar.position            = Vector2(-150.0, 355.0)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.8, 0.0, 0.0)
+	bar.add_theme_stylebox_override("fill", sb)
+	cl.add_child(bar)
+
+	get_tree().current_scene.add_child(cl)
+	_seizure_overlay = cl
+	_seizure_bar     = bar
+
+func _escape_seizure() -> void:
+	_remove_seizure_overlay()
+	sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	JuiceManager.add_trauma(0.4)
+	for n in get_tree().get_nodes_in_group("active_enemies"):
+		if n.get("is_boss") == true and n.get("is_dead") == false:
+			velocity += (global_position - n.global_position).normalized() * 350.0
+			break
+	var tween := create_tween()
+	tween.tween_property(sprite, "modulate", Color(2.0, 1.5, 1.5, 1.0), 0.05)
+	tween.tween_property(sprite, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.2)
+	AudioManager.play_sfx("dash")
+
+func _seizure_fail() -> void:
+	_blood_seized = false
+	_remove_seizure_overlay()
+	sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	var penalty := max_health * 0.35
+	drain_hp(penalty)
+	JuiceManager.add_trauma(0.6)
+	JuiceManager.spawn_blood(global_position, get_parent())
+	JuiceManager.spawn_damage_number(penalty, global_position, get_parent(), true)
+	AudioManager.play_sfx("damage_player")
+
+func _remove_seizure_overlay() -> void:
+	if is_instance_valid(_seizure_overlay):
+		_seizure_overlay.queue_free()
+	_seizure_overlay = null
+	_seizure_bar     = null
+
+func reset_temp_upgrades() -> void:
+	_temp_damage_bonus  = 0.0
+	_temp_hp_bonus      = 0.0
+	_temp_speed_bonus   = 0.0
+	_temp_dash_cd_bonus = 0.0
+	_apply_stats()
+
+func _flash_hit() -> void:
+	var tween := create_tween()
+	tween.tween_property(sprite, "modulate", Color(2.0, 0.3, 0.3, 1.0), 0.05)
+	tween.tween_property(sprite, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.15)
+
+func _die() -> void:
+	if is_dead:
+		return
+	is_dead = true
+	_remove_seizure_overlay()
+	AudioManager.stop_footsteps()
+	AudioManager.play_sfx("player_die")
+	set_physics_process(false)
+	JuiceManager.add_trauma(0.6)
+	# Limpa todos os inimigos da cena
+	if is_inside_tree():
+		for enemy in get_tree().get_nodes_in_group("active_enemies"):
+			if is_instance_valid(enemy):
+				enemy.queue_free()
+		for fly in get_tree().get_nodes_in_group("summoned_flies"):
+			if is_instance_valid(fly):
+				fly.queue_free()
+	# Toca animação de morte (row 5, 10 frames @ 8fps ≈ 1.25s)
+	sprite.modulate.a = 1.0
+	sprite.flip_h = false
+	sprite.play("death")
+	var tween := create_tween()
+	tween.tween_interval(10.0 / 8.0)
+	tween.tween_property(sprite, "modulate:a", 0.0, 0.4)
+	tween.tween_callback(func(): died.emit())
 
 func _damage_target(target: Node) -> void:
-	if hit_targets.has(target):
+	if target == self or hit_targets.has(target):
 		return
-
 	hit_targets.append(target)
-
 	if target.has_method("take_damage"):
 		target.call("take_damage", attack_damage, attack_direction)
 	elif target.has_method("receive_hit"):

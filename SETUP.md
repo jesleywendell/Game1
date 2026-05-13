@@ -3,7 +3,7 @@
 ## 1. Criar o projeto
 
 1. Abra o Godot 4
-2. **New Project** → escolha esta pasta como raiz: `OneDrive/PRODATER/IsometricGame2D`
+2. **New Project** → escolha esta pasta como raiz: `Code/Game1`
 3. Renderer: **Compatibility** (mais leve para 2D)
 
 ---

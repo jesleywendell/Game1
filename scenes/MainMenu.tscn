@@ -1,0 +1,220 @@
+[gd_scene format=3 uid="uid://4nra5na43iji"]
+
+[ext_resource type="Script" uid="uid://tk3ljna7kq2r" path="res://scripts/MainMenu.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://b3tgo5llp86i4" path="res://scripts/MenuButton.gd" id="2_btn"]
+[ext_resource type="Texture2D" uid="uid://qfth5avofktq" path="res://assets/tela_inicial/background/tela_inicial_oathbreaker.png" id="3_bg"]
+[ext_resource type="Texture2D" uid="uid://bj7w3ouooei7f" path="res://assets/tela_inicial/botoes/Botão_Iniciar_Jogo.png" id="4_iniciar"]
+[ext_resource type="Texture2D" uid="uid://d0pnpdt3wv7n8" path="res://assets/tela_inicial/botoes/Botao_Configuracoes.png" id="5_config"]
+[ext_resource type="Texture2D" uid="uid://dh7sptlddi431" path="res://assets/tela_inicial/botoes/Botao_Creditos.png" id="6_creditos"]
+[ext_resource type="Texture2D" uid="uid://ds0itj1trvfwf" path="res://assets/tela_inicial/botoes/Botao_Sair_do_Jogo.png" id="7_sair"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_iniciar"]
+atlas = ExtResource("4_iniciar")
+region = Rect2(0, 530, 1024, 476)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_config"]
+atlas = ExtResource("5_config")
+region = Rect2(0, 530, 1024, 476)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_creditos"]
+atlas = ExtResource("6_creditos")
+region = Rect2(0, 530, 1024, 476)
+filter_clip = true
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_sair"]
+atlas = ExtResource("7_sair")
+region = Rect2(0, 530, 1024, 476)
+filter_clip = true
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_modal"]
+content_margin_left = 24.0
+content_margin_top = 22.0
+content_margin_right = 24.0
+content_margin_bottom = 22.0
+bg_color = Color(0.055, 0.032, 0.018, 0.97)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.62, 0.46, 0.1, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_size = 18
+shadow_offset = Vector2(0, 5)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fechar"]
+bg_color = Color(0.1, 0.06, 0.03, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.62, 0.46, 0.1, 0.5)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fechar_pressed"]
+bg_color = Color(0.06, 0.04, 0.01, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.62, 0.46, 0.1, 0.6)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_fechar_hover"]
+bg_color = Color(0.18, 0.11, 0.04, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.62, 0.46, 0.1, 0.9)
+corner_radius_top_left = 5
+corner_radius_top_right = 5
+corner_radius_bottom_right = 5
+corner_radius_bottom_left = 5
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_trans"]
+
+[node name="MainMenu" type="Node2D" unique_id=244857677]
+script = ExtResource("1_main")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=474470105]
+
+[node name="BgBlack" type="ColorRect" parent="CanvasLayer" unique_id=1729716196]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+color = Color(0, 0, 0, 1)
+
+[node name="Background" type="TextureRect" parent="CanvasLayer" unique_id=1801320345]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+texture = ExtResource("3_bg")
+
+[node name="ButtonContainer" type="VBoxContainer" parent="CanvasLayer" unique_id=1937353708]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -260.0
+offset_top = 567.0
+offset_right = 260.0
+offset_bottom = 567.0
+grow_horizontal = 2
+theme_override_constants/separation = 6
+
+[node name="BtnIniciar" type="TextureButton" parent="CanvasLayer/ButtonContainer" unique_id=1214610371]
+custom_minimum_size = Vector2(0, 134)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+texture_normal = SubResource("AtlasTexture_iniciar")
+ignore_texture_size = true
+stretch_mode = 5
+script = ExtResource("2_btn")
+
+[node name="BtnConfiguracoes" type="TextureButton" parent="CanvasLayer/ButtonContainer" unique_id=1379028571]
+custom_minimum_size = Vector2(0, 134)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+texture_normal = SubResource("AtlasTexture_config")
+ignore_texture_size = true
+stretch_mode = 5
+script = ExtResource("2_btn")
+
+[node name="BtnCreditos" type="TextureButton" parent="CanvasLayer/ButtonContainer" unique_id=1296240563]
+custom_minimum_size = Vector2(0, 134)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+texture_normal = SubResource("AtlasTexture_creditos")
+ignore_texture_size = true
+stretch_mode = 5
+script = ExtResource("2_btn")
+
+[node name="BtnSair" type="TextureButton" parent="CanvasLayer/ButtonContainer" unique_id=15843670]
+custom_minimum_size = Vector2(0, 134)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+texture_normal = SubResource("AtlasTexture_sair")
+ignore_texture_size = true
+stretch_mode = 5
+script = ExtResource("2_btn")
+
+[node name="ModalOverlay" type="Control" parent="CanvasLayer" unique_id=1946720573]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+
+[node name="ModalBg" type="ColorRect" parent="CanvasLayer/ModalOverlay" unique_id=1895266087]
+layout_mode = 0
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.72)
+
+[node name="ModalPanel" type="PanelContainer" parent="CanvasLayer/ModalOverlay" unique_id=562578795]
+layout_mode = 0
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -190.0
+offset_top = -125.0
+offset_right = 190.0
+offset_bottom = 125.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_modal")
+
+[node name="VBox" type="VBoxContainer" parent="CanvasLayer/ModalOverlay/ModalPanel" unique_id=1752816706]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="BtnFechar" type="Button" parent="CanvasLayer/ModalOverlay/ModalPanel/VBox" unique_id=342588346]
+custom_minimum_size = Vector2(0, 38)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.75, 0.25, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_fechar")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_fechar_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_fechar_hover")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_trans")
+text = "Fechar"
+
+[node name="TitleLabel" type="Label" parent="CanvasLayer/ModalOverlay/ModalPanel/VBox" unique_id=1360885758]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.75, 0.25, 1)
+theme_override_font_sizes/font_size = 22
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="CanvasLayer/ModalOverlay/ModalPanel/VBox" unique_id=782963935]
+layout_mode = 2
+
+[node name="MessageLabel" type="Label" parent="CanvasLayer/ModalOverlay/ModalPanel/VBox" unique_id=1877999574]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.78, 0.7, 0.62, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1
+
+[node name="FadeRect" type="ColorRect" parent="CanvasLayer" unique_id=1374989762]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+color = Color(0, 0, 0, 1)

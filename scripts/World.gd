@@ -1,0 +1,582 @@
+extends Node2D
+
+const UPGRADE_PANEL      := preload("res://scenes/UpgradePanel.tscn")
+const PAUSE_MENU         := preload("res://scenes/PauseMenu.tscn")
+const PATHWAY_GENERATOR  := preload("res://scripts/PathwayGenerator.gd")
+const BOSS_DIALOGUE      := preload("res://scripts/BossDialogue.gd")
+const AZRAEL_MONOLOGUE   := preload("res://scripts/AzraelMonologue.gd")
+const VICTORY_SCREEN     := preload("res://scripts/VictoryScreen.gd")
+
+@onready var player: CharacterBody2D = $Player
+@onready var hud: CanvasLayer = $HUD
+
+var _wave_manager: Node
+var _boss_intro_fired := false
+var _enemies_killed: int = 0
+var _run_start_time: int = 0
+var _upgrade_panel: CanvasLayer
+var _fragments_at_start: int = 0
+var _light_texture: Texture2D
+var _portal_spawn_pos: Vector2
+var _pathway_gen: Node = null
+var _canvas_modulate: CanvasModulate = null
+
+func _ready() -> void:
+	hud.layer = 2
+	player.add_to_group("player")
+	player.health_changed.connect(hud.on_health_changed)
+	player.died.connect(hud.on_player_died)
+	add_child(PAUSE_MENU.instantiate())
+	var upgrade_panel := UPGRADE_PANEL.instantiate()
+	add_child(upgrade_panel)
+	_upgrade_panel = upgrade_panel
+	ProgressionManager.leveled_up.connect(func(_lvl): _upgrade_panel.on_leveled_up())
+	_light_texture = _make_light_texture()
+	_setup_atmosphere()
+	_setup_player_light()
+	_setup_camera_limits()
+
+	_wave_manager = load("res://scripts/WaveManager.gd").new()
+	_wave_manager.name = "WaveManager"
+	add_child(_wave_manager)
+	_wave_manager.init(self)
+	if ProgressionManager.get_current_area() == 1:
+		_spawn_chicken_boss()
+	_wave_manager.wave_cleared.connect(_on_wave_cleared)
+	_wave_manager.wave_started.connect(_on_wave_started)
+	_wave_manager.wave_started.connect(hud.on_wave_started)
+	hud.set_skill_manager(player.get_node("SkillManager"))
+	_wave_manager.area_cleared.connect(_on_area_cleared)
+	_wave_manager.boss_spawned.connect(_on_boss_spawned)
+	_wave_manager.boss_intro_requested.connect(_on_boss_intro_requested)
+	_wave_manager.timer_tick.connect(hud.on_timer_tick)
+	_wave_manager.frenzy_started.connect(hud.on_frenzy_started)
+	var radar: Node = load("res://scripts/EnemyRadar.gd").new()
+	radar.name = "EnemyRadar"
+	add_child(radar)
+	_start_tutorial_if_needed()
+	AudioManager.play_ambient()
+	tree_exiting.connect(AudioManager.stop_music)
+	_run_start_time = Time.get_ticks_msec()
+	_fragments_at_start = ProgressionManager.get_fragments()
+	_wave_manager.enemy_killed.connect(func(): _enemies_killed += 1)
+	call_deferred("_center_player")
+	player.died.connect(_on_player_died)
+
+func _center_player() -> void:
+	var p := get_node_or_null("Player")
+	if p:
+		p.position = Vector2(0, 960)
+	await get_tree().create_timer(0.6).timeout
+	_wave_manager.start_next_wave()
+	if WaveManager.debug_start_wave > 0:
+		_wave_manager.debug_skip_to_wave(WaveManager.debug_start_wave)
+		WaveManager.debug_start_wave = 0
+
+func _start_tutorial_if_needed() -> void:
+	if ProgressionManager.data.level > 1:
+		return
+	var tm: Node = load("res://scripts/TutorialManager.gd").new()
+	tm.name = "TutorialManager"
+	add_child(tm)
+	tm.init(player)
+
+func _on_wave_started(_wave_number: int) -> void:
+	AudioManager.stop_ambient()
+	AudioManager.play_wave_music()
+
+func _on_wave_cleared(wave_number: int) -> void:
+	if wave_number >= 3:
+		return
+	await get_tree().create_timer(2.0).timeout
+	_wave_manager.start_next_wave()
+
+func _on_player_died() -> void:
+	var wave_reached: int = _wave_manager.current_wave if _wave_manager else 1
+	var on_boss: bool = _wave_manager._boss_alive if _wave_manager else false
+	var checkpoint: int = 4 if on_boss else maxi(wave_reached, 1)
+	await get_tree().create_timer(1.5).timeout
+	_show_game_over_overlay(wave_reached, checkpoint)
+
+func _show_game_over_overlay(wave_reached: int = 0, checkpoint_wave: int = 1) -> void:
+	get_tree().paused = true
+	var elapsed_sec: int = int((Time.get_ticks_msec() - _run_start_time) / 1000)
+	var minutes: int = elapsed_sec / 60
+	var seconds: int = elapsed_sec % 60
+	var frags_earned := ProgressionManager.get_fragments() - _fragments_at_start
+
+	var cl := CanvasLayer.new()
+	cl.layer = 30
+	cl.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(cl)
+
+	var root := Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.process_mode = Node.PROCESS_MODE_ALWAYS
+	root.modulate.a = 0.0
+	cl.add_child(root)
+
+	var ov := ColorRect.new()
+	ov.color = Color(0.0, 0.0, 0.0, 0.72)
+	ov.set_anchors_preset(Control.PRESET_FULL_RECT)
+	ov.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(ov)
+
+	var vp   := get_viewport().get_visible_rect().size
+	var bg_tex := load("res://assets/game_over/background/background_game_over_02.png") as Texture2D
+
+	# Background — fixed 720×720
+	var pw := 720.0
+	var ph := 720.0
+	var px := (vp.x - pw) * 0.5
+	var py := (vp.y - ph) * 0.5
+
+	var bg := TextureRect.new()
+	bg.texture = bg_tex
+	bg.stretch_mode = TextureRect.STRETCH_SCALE
+	bg.set_position(Vector2(px, py))
+	bg.set_size(Vector2(pw, ph))
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(bg)
+
+	# Stats + botoes usam a mesma largura e o mesmo x para ficarem alinhados
+	var bw_shared := pw * 0.52
+	var bx_shared := px + (pw - bw_shared) * 0.5
+
+	var sv_w := bw_shared
+	var sv_x := bx_shared
+	var sv_y := py + ph * 0.45
+	var stats_box := VBoxContainer.new()
+	stats_box.add_theme_constant_override("separation", 5)
+	stats_box.set_position(Vector2(sv_x, sv_y))
+	stats_box.custom_minimum_size = Vector2(sv_w, 0)
+	root.add_child(stats_box)
+
+	var stats_lines: Array[String] = [
+		"Inimigos derrotados: %d"  % _enemies_killed,
+		"Fragmentos coletados: %d" % maxi(0, frags_earned),
+		"Tempo: %dm %02ds"         % [minutes, seconds],
+		"Onda alcançada: %d"       % wave_reached,
+	]
+	for s in stats_lines:
+		var lbl := Label.new()
+		lbl.text = s
+		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		lbl.add_theme_font_size_override("font_size", 15)
+		lbl.add_theme_color_override("font_color", Color(0.92, 0.88, 0.75))
+		lbl.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.8))
+		lbl.add_theme_constant_override("shadow_offset_x", 2)
+		lbl.add_theme_constant_override("shadow_offset_y", 2)
+		stats_box.add_child(lbl)
+
+	# Buttons — mesma largura e x dos stats para alinhamento perfeito
+	var bw   := bw_shared
+	var bx   := bx_shared
+	var gap  := pw * 0.018
+	var by   := py + ph * 0.62
+
+	var bh0 := bw * (200.0 / 1113.0)
+	_go_btn(root, "res://assets/game_over/buttons/try_again.png", bx, by, bw, bh0,
+		func():
+			WaveManager.debug_start_wave = checkpoint_wave
+			ProgressionManager.data.current_area = 1
+			get_tree().paused = false
+			TransitionScreen.fade_to("res://scenes/World.tscn"))
+	by += bh0 + gap
+
+	var bh1 := bw * (205.0 / 1113.0)
+	_go_btn(root, "res://assets/game_over/buttons/return_hub.png", bx, by, bw, bh1,
+		func():
+			WaveManager.debug_start_wave = 0
+			get_tree().paused = false
+			TransitionScreen.fade_to("res://scenes/Hub.tscn"))
+	by += bh1 + gap
+
+	var bh2 := bw * (210.0 / 1113.0)
+	_go_btn(root, "res://assets/game_over/buttons/main_menu.png", bx, by, bw, bh2,
+		func():
+			WaveManager.debug_start_wave = 0
+			get_tree().paused = false
+			TransitionScreen.fade_to("res://scenes/MainMenu.tscn"))
+
+	var tween := cl.create_tween()
+	tween.tween_property(root, "modulate:a", 1.0, 0.6)
+
+func _go_btn(parent: Control, path: String, x: float, y: float, w: float, h: float, cb: Callable) -> void:
+	var btn := TextureButton.new()
+	btn.texture_normal = load(path) as Texture2D
+	btn.stretch_mode = TextureButton.STRETCH_SCALE
+	btn.ignore_texture_size = true
+	btn.set_position(Vector2(x, y))
+	btn.set_size(Vector2(w, h))
+	btn.pivot_offset = Vector2(w, h) * 0.5
+	btn.process_mode = Node.PROCESS_MODE_ALWAYS
+	btn.pressed.connect(cb)
+	btn.mouse_entered.connect(func():
+		btn.create_tween().tween_property(btn, "modulate", Color(1.3, 1.15, 0.85), 0.10)
+	)
+	btn.mouse_exited.connect(func():
+		btn.create_tween().tween_property(btn, "modulate", Color(1.0, 1.0, 1.0), 0.12)
+	)
+	btn.button_down.connect(func():
+		btn.create_tween().tween_property(btn, "scale", Vector2(0.96, 0.96), 0.06).set_ease(Tween.EASE_OUT)
+	)
+	btn.button_up.connect(func():
+		btn.create_tween().tween_property(btn, "scale", Vector2(1.0, 1.0), 0.10).set_ease(Tween.EASE_OUT)
+	)
+	parent.add_child(btn)
+
+func _on_boss_intro_requested(area: int) -> void:
+	if _boss_intro_fired:
+		return
+	_boss_intro_fired = true
+	AudioManager.stop_music()
+	var dialogue = BOSS_DIALOGUE.new()
+	dialogue.setup(BOSS_DIALOGUE.get_lines(area))
+	add_child(dialogue)
+	dialogue.dialogue_finished.connect(_wave_manager.execute_boss_spawn, CONNECT_ONE_SHOT)
+
+func _on_boss_spawned() -> void:
+	hud.show_boss_label()
+	if ProgressionManager.get_current_area() >= 3:
+		AudioManager.play_boss3_music()
+	else:
+		AudioManager.play_boss_music()
+
+func _on_area_cleared() -> void:
+	if player.is_dead:
+		return
+	var from_area := ProgressionManager.get_current_area()
+	if from_area >= 3:
+		_start_victory_sequence()
+		return
+	ProgressionManager.advance_area()
+	var to_area := ProgressionManager.get_current_area()
+	_spawn_transition_path(from_area, to_area)
+	await get_tree().create_timer(1.5).timeout
+	_spawn_exit_portal()
+
+func _start_victory_sequence() -> void:
+	get_tree().paused = true
+	var dialogue := BOSS_DIALOGUE.new()
+	dialogue.setup(BOSS_DIALOGUE.get_death_lines(3))
+	dialogue.auto_unpause = false
+	add_child(dialogue)
+	dialogue.dialogue_finished.connect(_on_jess_death_dialogue_done)
+
+func _on_jess_death_dialogue_done() -> void:
+	if is_instance_valid(_canvas_modulate):
+		var tw := create_tween()
+		tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		tw.tween_property(_canvas_modulate, "color", Color(0.35, 0.30, 0.22), 3.2)
+	var monologue := AZRAEL_MONOLOGUE.new()
+	add_child(monologue)
+	monologue.finished.connect(_on_monologue_done)
+
+func _on_monologue_done() -> void:
+	var vs := VICTORY_SCREEN.new()
+	vs.setup(_enemies_killed, _run_start_time, _fragments_at_start)
+	add_child(vs)
+
+func _spawn_transition_path(from_area: int, to_area: int) -> void:
+	var pg := PATHWAY_GENERATOR.new()
+	add_child(pg)
+	pg.build(from_area, to_area, player.global_position)
+	_portal_spawn_pos = pg.portal_end
+	_pathway_gen = pg
+
+func _spawn_exit_portal() -> void:
+	if is_instance_valid(_pathway_gen):
+		_pathway_gen.open_end()
+
+	var spawn_pos := _portal_spawn_pos if _portal_spawn_pos != Vector2.ZERO \
+		else player.global_position + Vector2(120, 0)
+
+	var portal := Area2D.new()
+	portal.z_index = 12
+	add_child(portal)
+	portal.global_position = spawn_pos
+
+	# Skull door no fim do caminho
+	if ResourceLoader.exists("res://assets/Free-Undead-Tileset-Top-Down-Pixel-Art/PNG/Objects_separately/Scull_door_shadow1.png"):
+		var spr     := Sprite2D.new()
+		spr.texture  = load("res://assets/Free-Undead-Tileset-Top-Down-Pixel-Art/PNG/Objects_separately/Scull_door_shadow1.png")
+		spr.scale    = Vector2(1.6, 1.6)
+		spr.z_index  = 1
+		portal.add_child(spr)
+
+	# Particulas de portal
+	var particles                    := CPUParticles2D.new()
+	particles.emitting                = true
+	particles.amount                  = 24
+	particles.lifetime                = 1.5
+	particles.emission_shape          = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	particles.emission_sphere_radius  = 22.0
+	particles.direction               = Vector2(0.0, -1.0)
+	particles.spread                  = 45.0
+	particles.gravity                 = Vector2(0.0, -25.0)
+	particles.initial_velocity_min    = 10.0
+	particles.initial_velocity_max    = 28.0
+	particles.color                   = Color(0.5, 0.0, 1.0, 0.8)
+	particles.z_index                 = 2
+	portal.add_child(particles)
+
+	var shape      := CircleShape2D.new()
+	shape.radius    = 36.0
+	var cs         := CollisionShape2D.new()
+	cs.shape        = shape
+	portal.add_child(cs)
+
+	portal.body_entered.connect(func(body):
+		if body == player:
+			portal.set_deferred("monitoring", false)
+			TransitionScreen.fade_to("res://scenes/World.tscn")
+	)
+
+	portal.scale = Vector2.ZERO
+	var tw := create_tween()
+	tw.tween_property(portal, "scale", Vector2.ONE, 0.6).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+
+func _get_debug_step() -> int:
+	if _wave_manager == null:
+		return 1
+	var area := ProgressionManager.get_current_area()
+	var wave: int = _wave_manager.current_wave
+	if _wave_manager._boss_alive:
+		wave = 4
+	return (area - 1) * 4 + clamp(wave, 1, 4)
+
+func _debug_navigate(delta: int) -> void:
+	var step := _get_debug_step() + delta
+	if step < 1 or step > 12:
+		return
+	var target_area := (step - 1) / 4 + 1
+	var target_wave := (step - 1) % 4 + 1
+	if target_area != ProgressionManager.get_current_area():
+		ProgressionManager.data.current_area = target_area
+		WaveManager.debug_start_wave = target_wave
+		TransitionScreen.fade_to("res://scenes/World.tscn")
+	else:
+		_boss_intro_fired = false
+		_wave_manager.debug_skip_to_wave(target_wave)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_fullscreen"):
+		var mode := DisplayServer.window_get_mode()
+		if mode == DisplayServer.WINDOW_MODE_FULLSCREEN:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+		else:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+	if OS.is_debug_build():
+		if event.is_action_pressed("debug_wave2"):
+			_wave_manager.debug_skip_to_wave(2)
+		elif event.is_action_pressed("debug_wave3"):
+			_wave_manager.debug_skip_to_wave(3)
+		elif event.is_action_pressed("debug_boss"):
+			_wave_manager.debug_skip_to_wave(4)
+		elif event.is_action_pressed("debug_next_area"):
+			_debug_navigate(1)
+		elif event.is_action_pressed("debug_prev_area"):
+			_debug_navigate(-1)
+
+func _make_light_texture() -> Texture2D:
+	var img := Image.create(128, 128, false, Image.FORMAT_RGBA8)
+	for y in range(128):
+		for x in range(128):
+			var d := Vector2(float(x) - 64.0, float(y) - 64.0).length() / 64.0
+			var a := 0.0
+			if d < 1.0:
+				var t := 1.0 - d
+				t = t * t * (3.0 - 2.0 * t)
+				a = t * t
+			img.set_pixel(x, y, Color(1.0, 1.0, 1.0, a))
+	return ImageTexture.create_from_image(img)
+
+func _setup_player_light() -> void:
+	var area := ProgressionManager.get_current_area()
+	var light := PointLight2D.new()
+	light.texture = _light_texture
+	light.texture_scale = 2.6
+	light.energy = 1.5
+	light.range_z_min = -10
+	light.range_z_max = 100
+	light.z_index = 5
+	light.position = Vector2(0, -16)
+	match area:
+		1: light.color = Color(0.60, 0.88, 0.55)   # forest: warm green
+		2: light.color = Color(0.90, 0.45, 0.20)   # cursed: amber-blood
+		3: light.color = Color(0.50, 0.62, 1.00)   # undead: cold spectral blue
+		_: light.color = Color(0.60, 0.75, 1.00)
+	player.add_child(light)
+
+func _setup_camera_limits() -> void:
+	var cam := player.get_node_or_null("Camera2D") as Camera2D
+	if cam == null:
+		return
+	# MapGenerator: 120×120 tiles, iso = ((col-row)*16, (col+row)*8)
+	# Extremes: x in [-1904, 1904], y in [0, 1904]
+	var pad := 96
+	cam.limit_left   = -1904 - pad
+	cam.limit_right  =  1904 + pad
+	cam.limit_top    =     0 - pad
+	cam.limit_bottom =  1904 + pad
+
+func _setup_atmosphere() -> void:
+	var area := ProgressionManager.get_current_area()
+
+	# Void background — covers engine's gray beyond map tiles
+	var void_layer := CanvasLayer.new()
+	void_layer.layer = -10
+	add_child(void_layer)
+	var void_bg := ColorRect.new()
+	void_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	match area:
+		1: void_bg.color = Color(0.03, 0.05, 0.03)
+		2: void_bg.color = Color(0.06, 0.02, 0.01)
+		3: void_bg.color = Color(0.01, 0.01, 0.05)
+		_: void_bg.color = Color(0.03, 0.04, 0.03)
+	void_layer.add_child(void_bg)
+
+	# CanvasModulate darkens the full scene so PointLight2D creates torch contrast
+	var cm := CanvasModulate.new()
+	match area:
+		1: cm.color = Color(0.22, 0.26, 0.22)   # dark forest green
+		2: cm.color = Color(0.26, 0.19, 0.16)   # dark blood-rust
+		3: cm.color = Color(0.16, 0.18, 0.28)   # cold grave blue
+		_: cm.color = Color(0.22, 0.24, 0.24)
+	add_child(cm)
+	_canvas_modulate = cm
+
+	var atm := CanvasLayer.new()
+	atm.layer = 1
+
+	# Phase-specific ambient wash
+	var ambient := ColorRect.new()
+	ambient.anchors_preset = Control.PRESET_FULL_RECT
+	match area:
+		1: ambient.color = Color(0.00, 0.03, 0.00, 0.18)  # Forest: deep moss green
+		2: ambient.color = Color(0.05, 0.01, 0.00, 0.26)  # Cursed: sickly blood-dark
+		3: ambient.color = Color(0.00, 0.00, 0.05, 0.22)  # Undead: cold grave blue
+		_: ambient.color = Color(0.00, 0.02, 0.00, 0.20)
+	atm.add_child(ambient)
+
+	# Phase-specific vignette (heavier in cursed/undead)
+	var vig_strength: float
+	match area:
+		1: vig_strength = 0.72
+		2: vig_strength = 0.92
+		3: vig_strength = 0.84
+		_: vig_strength = 0.78
+	var vignette_rect := ColorRect.new()
+	vignette_rect.anchors_preset = Control.PRESET_FULL_RECT
+	var vshader := Shader.new()
+	vshader.code = (
+		"shader_type canvas_item;\n"
+		+ "uniform float strength : hint_range(0.0,1.5) = 0.78;\n"
+		+ "void fragment() {\n"
+		+ "\tvec2 uv = UV - vec2(0.5);\n"
+		+ "\tfloat dist = length(uv) * 1.8;\n"
+		+ "\tfloat v = smoothstep(0.25, 1.0, dist);\n"
+		+ "\tCOLOR = vec4(0.0, 0.0, 0.0, v * strength);\n"
+		+ "}"
+	)
+	var vmat := ShaderMaterial.new()
+	vmat.shader = vshader
+	vmat.set_shader_parameter("strength", vig_strength)
+	vignette_rect.material = vmat
+	atm.add_child(vignette_rect)
+	add_child(atm)
+
+	# Primary ground fog layer — phase-specific color and density
+	var fog := CPUParticles2D.new()
+	fog.emitting = true
+	fog.one_shot = false
+	fog.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	fog.emission_rect_extents = Vector2(760.0, 300.0)
+	fog.direction = Vector2(0.25, -1.0)
+	fog.spread = 28.0
+	fog.gravity = Vector2(0.0, -3.0)
+	fog.z_index = -8
+	match area:
+		1:  # Forest: slow green wisps, moderate
+			fog.amount = 65
+			fog.lifetime = 7.0
+			fog.initial_velocity_min = 4.0
+			fog.initial_velocity_max = 11.0
+			fog.scale_amount_min = 20.0
+			fog.scale_amount_max = 40.0
+			fog.color = Color(0.32, 0.52, 0.30, 0.08)
+		2:  # Cursed: thick toxic brownish-red miasma
+			fog.amount = 100
+			fog.lifetime = 9.0
+			fog.initial_velocity_min = 2.0
+			fog.initial_velocity_max = 7.0
+			fog.scale_amount_min = 26.0
+			fog.scale_amount_max = 52.0
+			fog.color = Color(0.52, 0.20, 0.10, 0.12)
+			fog.direction = Vector2(0.10, -1.0)
+		3:  # Undead: cold blue-grey spectral mist
+			fog.amount = 80
+			fog.lifetime = 10.0
+			fog.initial_velocity_min = 3.0
+			fog.initial_velocity_max = 8.0
+			fog.scale_amount_min = 22.0
+			fog.scale_amount_max = 46.0
+			fog.color = Color(0.22, 0.30, 0.50, 0.09)
+		_:
+			fog.amount = 60
+			fog.lifetime = 6.0
+			fog.initial_velocity_min = 4.0
+			fog.initial_velocity_max = 10.0
+			fog.scale_amount_min = 18.0
+			fog.scale_amount_max = 36.0
+			fog.color = Color(0.45, 0.60, 0.45, 0.07)
+	add_child(fog)
+
+	# Phase 2: rising toxic spore particles (small, upward drift)
+	if area == 2:
+		var spores := CPUParticles2D.new()
+		spores.emitting = true
+		spores.amount = 40
+		spores.lifetime = 4.5
+		spores.one_shot = false
+		spores.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+		spores.emission_rect_extents = Vector2(800.0, 320.0)
+		spores.direction = Vector2(0.05, -1.0)
+		spores.spread = 12.0
+		spores.gravity = Vector2(0.0, -10.0)
+		spores.initial_velocity_min = 8.0
+		spores.initial_velocity_max = 20.0
+		spores.scale_amount_min = 2.0
+		spores.scale_amount_max = 5.0
+		spores.color = Color(0.62, 0.42, 0.08, 0.28)
+		spores.z_index = 6
+		add_child(spores)
+
+	# Phase 3: spectral ember wisps (like Hub embers, blue-white)
+	if area == 3:
+		var wisps := CPUParticles2D.new()
+		wisps.emitting = true
+		wisps.amount = 35
+		wisps.lifetime = 5.5
+		wisps.one_shot = false
+		wisps.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+		wisps.emission_rect_extents = Vector2(800.0, 320.0)
+		wisps.direction = Vector2(0.15, -1.0)
+		wisps.spread = 22.0
+		wisps.gravity = Vector2(0.0, -7.0)
+		wisps.initial_velocity_min = 6.0
+		wisps.initial_velocity_max = 16.0
+		wisps.scale_amount_min = 2.0
+		wisps.scale_amount_max = 5.0
+		wisps.color = Color(0.38, 0.52, 0.92, 0.32)
+		wisps.z_index = 6
+		add_child(wisps)
+
+func _spawn_chicken_boss() -> void:
+	var boss = load("res://scripts/ChickenBoss.gd").new()
+	boss.position = Vector2(-1488.0, 984.0)
+	boss.add_to_group("chicken_boss")
+	boss.boss_triggered.connect(_wave_manager.suspend_for_chicken_boss)
+	boss.boss_defeated.connect(_wave_manager.resume_after_chicken_boss)
+	add_child(boss)
