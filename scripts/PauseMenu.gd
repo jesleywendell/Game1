@@ -52,16 +52,18 @@ func _build() -> void:
 	ov.process_mode = Node.PROCESS_MODE_ALWAYS
 	_root.add_child(ov)
 
-	var bg_img  := Image.load_from_file(BG)
-	var btn_img := Image.load_from_file(CONT)
+	var bg_tex  := load(BG) as Texture2D
+	assert(bg_tex != null, "PauseMenu: missing asset: " + BG)
+	var btn_tex := load(CONT) as Texture2D
+	assert(btn_tex != null, "PauseMenu: missing asset: " + CONT)
 
 	var pw  := vp.x * 0.48
-	var ph  := pw * (float(bg_img.get_height()) / float(bg_img.get_width()))
+	var ph  := pw * (float(bg_tex.get_height()) / float(bg_tex.get_width()))
 	var px  := (vp.x * 0.5) - (pw * 0.5)
 	var py  := (vp.y * 0.5) - (ph * 0.5)
 
 	var bg := TextureRect.new()
-	bg.texture = ImageTexture.create_from_image(bg_img)
+	bg.texture = bg_tex
 	bg.stretch_mode = TextureRect.STRETCH_SCALE
 	bg.set_position(Vector2(px, py))
 	bg.set_size(Vector2(pw, ph))
@@ -69,7 +71,7 @@ func _build() -> void:
 	_root.add_child(bg)
 
 	var bw := pw * 0.46
-	var bh := bw * (float(btn_img.get_height()) / float(btn_img.get_width()))
+	var bh := bw * (float(btn_tex.get_height()) / float(btn_tex.get_width()))
 	var bx := px + (pw - bw) * 0.5 + pw * 0.06
 	var gap := bh * 0.20
 	var total_h := bh * 2.0 + gap
@@ -80,7 +82,7 @@ func _build() -> void:
 
 func _btn(path: String, x: float, y: float, w: float, h: float, cb: Callable) -> void:
 	var btn := TextureButton.new()
-	btn.texture_normal = ImageTexture.create_from_image(Image.load_from_file(path))
+	btn.texture_normal = load(path) as Texture2D
 	btn.stretch_mode = TextureButton.STRETCH_SCALE
 	btn.ignore_texture_size = true
 	btn.set_position(Vector2(x, y))

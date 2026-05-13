@@ -11,21 +11,20 @@ func _ready() -> void:
 	add_child(cl)
 
 	# ── Background ────────────────────────────────────────────────────────────
-	var bg_img := Image.load_from_file(IMG_CREDITS)
+	var bg_tex := load(IMG_CREDITS) as Texture2D
 	var bg := TextureRect.new()
-	bg.texture = ImageTexture.create_from_image(bg_img)
+	bg.texture = bg_tex
 	bg.stretch_mode = TextureRect.STRETCH_SCALE
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cl.add_child(bg)
 
 	# ── Back button — centered within the credits image frame ─────────────────
-	var btn_img  := Image.load_from_file(IMG_BTN)
-	var btn_tex  := ImageTexture.create_from_image(btn_img)
+	var btn_tex  := load(IMG_BTN) as Texture2D
 
 	# Scale the button proportionally: ~22 % of viewport width
 	var btn_w := vp.x * 0.22
-	var btn_h := btn_w * (float(btn_img.get_height()) / float(btn_img.get_width()))
+	var btn_h := btn_w * (float(btn_tex.get_height()) / float(btn_tex.get_width()))
 
 	# Horizontal center matches the credits image (which fills the viewport)
 	var btn_x := (vp.x - btn_w) * 0.5

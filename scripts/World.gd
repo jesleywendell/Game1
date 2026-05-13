@@ -123,7 +123,7 @@ func _show_game_over_overlay(wave_reached: int = 0, checkpoint_wave: int = 1) ->
 	root.add_child(ov)
 
 	var vp   := get_viewport().get_visible_rect().size
-	var bg_img := Image.load_from_file("res://assets/game_over/background/background_game_over_02.png")
+	var bg_tex := load("res://assets/game_over/background/background_game_over_02.png") as Texture2D
 
 	# Background — fixed 720×720
 	var pw := 720.0
@@ -132,7 +132,7 @@ func _show_game_over_overlay(wave_reached: int = 0, checkpoint_wave: int = 1) ->
 	var py := (vp.y - ph) * 0.5
 
 	var bg := TextureRect.new()
-	bg.texture = ImageTexture.create_from_image(bg_img)
+	bg.texture = bg_tex
 	bg.stretch_mode = TextureRect.STRETCH_SCALE
 	bg.set_position(Vector2(px, py))
 	bg.set_size(Vector2(pw, ph))
@@ -179,7 +179,7 @@ func _show_game_over_overlay(wave_reached: int = 0, checkpoint_wave: int = 1) ->
 	_go_btn(root, "res://assets/game_over/buttons/try_again.png", bx, by, bw, bh0,
 		func():
 			WaveManager.debug_start_wave = checkpoint_wave
-			ProgressionManager.reset_run()
+			ProgressionManager.data.current_area = 1
 			get_tree().paused = false
 			TransitionScreen.fade_to("res://scenes/World.tscn"))
 	by += bh0 + gap
@@ -204,7 +204,7 @@ func _show_game_over_overlay(wave_reached: int = 0, checkpoint_wave: int = 1) ->
 
 func _go_btn(parent: Control, path: String, x: float, y: float, w: float, h: float, cb: Callable) -> void:
 	var btn := TextureButton.new()
-	btn.texture_normal = ImageTexture.create_from_image(Image.load_from_file(path))
+	btn.texture_normal = load(path) as Texture2D
 	btn.stretch_mode = TextureButton.STRETCH_SCALE
 	btn.ignore_texture_size = true
 	btn.set_position(Vector2(x, y))

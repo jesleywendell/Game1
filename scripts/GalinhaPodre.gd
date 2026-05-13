@@ -107,13 +107,41 @@ func apply_frenzy() -> void:
 
 func _draw() -> void:
 	if not is_dead:
-		draw_circle(Vector2.ZERO, 12.0, Color(0.1, 0.8, 0.2, 0.9))
+		# Wings — translucent, behind body
+		draw_colored_polygon(PackedVector2Array([Vector2(-4,-2),Vector2(-18,-10),Vector2(-20,0),Vector2(-14,6)]), Color(0.7,0.8,0.9,0.35))
+		draw_colored_polygon(PackedVector2Array([Vector2(4,-2),Vector2(18,-10),Vector2(20,0),Vector2(14,6)]), Color(0.7,0.8,0.9,0.35))
+		draw_colored_polygon(PackedVector2Array([Vector2(-3,2),Vector2(-15,4),Vector2(-16,10),Vector2(-10,12)]), Color(0.7,0.8,0.9,0.28))
+		draw_colored_polygon(PackedVector2Array([Vector2(3,2),Vector2(15,4),Vector2(16,10),Vector2(10,12)]), Color(0.7,0.8,0.9,0.28))
+		# Abdomen
+		draw_circle(Vector2(0,6), 8.0, Color(0.12,0.14,0.10))
+		draw_circle(Vector2(0,2), 5.0, Color(0.18,0.22,0.15))
+		draw_line(Vector2(-7,4), Vector2(7,4), Color(0.28,0.32,0.22,0.6), 1.5)
+		draw_line(Vector2(-8,7), Vector2(8,7), Color(0.28,0.32,0.22,0.6), 1.5)
+		draw_line(Vector2(-7,10), Vector2(7,10), Color(0.28,0.32,0.22,0.6), 1.5)
+		# Thorax
+		draw_circle(Vector2(0,-3), 5.0, Color(0.20,0.24,0.18))
+		# Head
+		draw_circle(Vector2(0,-10), 5.5, Color(0.15,0.18,0.12))
+		# Compound eyes
+		draw_circle(Vector2(-4,-11), 3.5, Color(0.7,0.05,0.05))
+		draw_circle(Vector2(4,-11), 3.5, Color(0.7,0.05,0.05))
+		draw_circle(Vector2(-3,-12), 1.0, Color(1.0,0.3,0.3,0.5))
+		draw_circle(Vector2(5,-12), 1.0, Color(1.0,0.3,0.3,0.5))
+		# Proboscis
+		draw_line(Vector2(0,-5), Vector2(0,-1), Color(0.15,0.18,0.12), 1.5)
+		# Legs
+		draw_line(Vector2(-4,0), Vector2(-12,-2), Color(0.15,0.18,0.12), 1.0)
+		draw_line(Vector2(-4,3), Vector2(-13,5), Color(0.15,0.18,0.12), 1.0)
+		draw_line(Vector2(-4,6), Vector2(-12,10), Color(0.15,0.18,0.12), 1.0)
+		draw_line(Vector2(4,0), Vector2(12,-2), Color(0.15,0.18,0.12), 1.0)
+		draw_line(Vector2(4,3), Vector2(13,5), Color(0.15,0.18,0.12), 1.0)
+		draw_line(Vector2(4,6), Vector2(12,10), Color(0.15,0.18,0.12), 1.0)
 	if is_dead or current_health >= MAX_HEALTH:
 		return
 	var x := -BAR_W / 2.0
-	draw_rect(Rect2(x, BAR_Y, BAR_W, BAR_H), Color(0.15, 0.0, 0.0, 0.85))
+	draw_rect(Rect2(x, BAR_Y, BAR_W, BAR_H), Color(0.15,0.0,0.0,0.85))
 	var fill := BAR_W * (current_health / MAX_HEALTH)
-	draw_rect(Rect2(x, BAR_Y, fill, BAR_H), Color(0.9, 0.1, 0.1, 1.0))
+	draw_rect(Rect2(x, BAR_Y, fill, BAR_H), Color(0.9,0.1,0.1,1.0))
 
 func _on_body_entered(body: Node) -> void:
 	if body.has_method("take_damage"):

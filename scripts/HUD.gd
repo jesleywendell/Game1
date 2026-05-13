@@ -163,7 +163,9 @@ func _slot_from_source(frame_crop: Rect2i, fill_src: Rect2i, out_w: int, out_h: 
 	)
 
 func _load_cropped(path: String, crop: Rect2i, out_w: int, out_h: int) -> ImageTexture:
-	var img := Image.load_from_file(path)
+	var tex := load(path) as Texture2D
+	assert(tex != null, "_load_cropped: missing asset: " + path)
+	var img := tex.get_image()
 	var region := img.get_region(crop)
 
 	region.resize(
@@ -406,5 +408,5 @@ func on_fragments_changed(total: int) -> void:
 		_fragments_label.text = "✦ %d" % total
 
 func on_player_died() -> void:
-	game_over_label.hide()
+	game_over_label.show()
 	hide()
