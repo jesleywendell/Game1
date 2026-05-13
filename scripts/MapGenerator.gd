@@ -12,11 +12,37 @@ const UNDEAD_ASSETS  := "res://assets/Free-Undead-Tileset-Top-Down-Pixel-Art/PNG
 # ── Tile pools ────────────────────────────────────────────────────────────────
 
 # Phase 1 — Rotten Forest
-const TILES_DARK_SOIL := [12, 13, 14]
-const TILES_MOSSY     := [20, 21, 22, 23]
-const TILES_GREEN     := [34, 35, 36]
-const TILES_ROCKY     := [60, 61]
-const TILES_BORDER    := [60, 61]
+const TILES_DARK_SOIL    := [12, 13, 14]
+const TILES_MOSSY        := [20, 21, 22, 23]
+const TILES_GREEN        := [34, 35, 36]
+const TILES_ROCKY        := [60, 61]
+const TILES_BORDER       := [60, 61]
+const TILES_WATER_DEEP   := [90, 92, 95, 100]   # centro do rio infectado
+const TILES_WATER_SHALLOW:= [97, 105, 110]       # margens do rio
+
+# Clusters de construções — Fase 1, nos 4 cantos do mapa
+# Formato: [col, row, rel_path, escala, sprite_w_px, sprite_h_px, tem_colisao]
+const FOREST_STRUCTS := [
+	# ── Canto NORTE (topo da tela) ─────────────────────────────────────────────
+	[8,   7,  "edificacoes_grandes/edificacoes_grandes_003.png",   1.6, 111, 230, 1],
+	[14,  12, "edificacoes_pequenas/edificacoes_pequenas_001.png", 1.4, 92,  118, 1],
+	[11,  10, "props_decoracao/props_decoracao_007.png",           1.0, 58,  67,  0],
+
+	# ── Canto LESTE (direita da tela) ──────────────────────────────────────────
+	[113, 7,  "edificacoes_grandes/edificacoes_grandes_005.png",   1.6, 101, 106, 1],
+	[108, 13, "edificacoes_pequenas/edificacoes_pequenas_002.png", 1.4, 81,  112, 1],
+	[111, 10, "props_decoracao/props_decoracao_007.png",           1.0, 58,  67,  0],
+
+	# ── Canto OESTE (esquerda da tela) ─────────────────────────────────────────
+	[7,   113,"edificacoes_grandes/edificacoes_grandes_003.png",   1.6, 111, 230, 1],
+	[13,  108,"edificacoes_pequenas/edificacoes_pequenas_005.png", 1.4, 145, 105, 1],
+	[10,  111,"props_decoracao/props_decoracao_007.png",           1.0, 58,  67,  0],
+
+	# ── Canto SUL (base da tela) ────────────────────────────────────────────────
+	[113, 113,"edificacoes_grandes/edificacoes_grandes_005.png",   1.6, 101, 106, 1],
+	[108, 108,"edificacoes_pequenas/edificacoes_pequenas_004.png", 1.4, 82,  118, 1],
+	[111, 111,"props_decoracao/props_decoracao_007.png",           1.0, 58,  67,  0],
+]
 
 # Phase 2 — Cursed Land  (3 zones: cracked soil / sickly moss / corrupted rock)
 const TILES_CURSED_FLOOR := [12, 13, 14]
@@ -31,12 +57,14 @@ const TILES_UNDEAD_PATCH := [12, 13, 14]
 
 const FOREST_INTERIOR: Array[String] = [
 	"Bones_shadow1_1.png",  "Bones_shadow1_3.png",  "Bones_shadow1_5.png",
-	"Bones_shadow1_8.png",  "Bones_shadow1_11.png", "Bones_shadow1_14.png",
+	"Bones_shadow1_7.png",  "Bones_shadow1_9.png",  "Bones_shadow1_11.png",
+	"Bones_shadow1_14.png", "Bones_shadow1_16.png",
 	"Rock_shadow1_1.png",   "Rock_shadow1_2.png",   "Rock_shadow1_3.png",
 	"Rock_shadow1_4.png",   "Rock_shadow1_5.png",
 	"Plant_shadow1_1.png",  "Plant_shadow1_2.png",  "Plant_shadow1_3.png",
 	"Plant_shadow1_4.png",  "Plant_shadow1_5.png",
 	"Dead_tree_shadow1_1.png", "Dead_tree_shadow1_2.png", "Dead_tree_shadow1_3.png",
+	"Thorn_palnt_shadow2_1.png", "Thorn_palnt_shadow2_2.png", "Thorn_palnt_shadow2_3.png",
 ]
 const FOREST_BORDER: Array[String] = [
 	"Broken_tree_shadow1_1.png", "Broken_tree_shadow1_2.png", "Broken_tree_shadow1_3.png",
@@ -134,6 +162,13 @@ func _generate_forest() -> void:
 	noise.seed = 7
 	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	noise.frequency = 0.1
+
+	# Rio infectado — noise de baixa frequência cria meandros naturais
+	var river_noise := FastNoiseLite.new()
+	river_noise.seed = 33
+	river_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	river_noise.frequency = 0.032
+
 	for row in MAP_ROWS:
 		for col in MAP_COLS:
 			var is_border := row == 0 or row == MAP_ROWS - 1 or col == 0 or col == MAP_COLS - 1
@@ -141,8 +176,63 @@ func _generate_forest() -> void:
 			if is_border:
 				idx = TILES_BORDER[_stable_pick(col + row * MAP_COLS, TILES_BORDER.size())]
 			else:
-				idx = _pick_forest_tile(noise.get_noise_2d(col, row), col, row)
+				var s  := col * 31 + row * 97
+				var rn := river_noise.get_noise_2d(col, row)
+				if abs(rn) < 0.05:
+					# Centro do rio (água profunda escura)
+					idx = TILES_WATER_DEEP[_stable_pick(s, TILES_WATER_DEEP.size())]
+					_mark_occupied(col, row)
+				elif abs(rn) < 0.09:
+					# Margem do rio (água rasa, tom infectado mais claro)
+					idx = TILES_WATER_SHALLOW[_stable_pick(s, TILES_WATER_SHALLOW.size())]
+					_mark_occupied(col, row)
+				else:
+					idx = _pick_forest_tile(noise.get_noise_2d(col, row), col, row)
 			_place_tile(col, row, idx)
+
+	_place_forest_structures()
+
+func _place_forest_structures() -> void:
+	for entry in FOREST_STRUCTS:
+		var col      : int    = entry[0]
+		var row      : int    = entry[1]
+		var rel      : String = entry[2]
+		var s        : float  = entry[3]
+		var spr_w    : int    = entry[4]
+		var spr_h    : int    = entry[5]
+		var has_col  : int    = entry[6]
+
+		var path := "res://assets/" + rel
+		if not ResourceLoader.exists(path):
+			continue
+
+		var world_pos := Vector2((col - row) * TILE_W / 2.0, (col + row) * TILE_H / 4.0)
+
+		var body := StaticBody2D.new()
+		body.collision_layer = 1
+		body.collision_mask  = 0
+		body.position        = world_pos
+		body.z_index         = int(world_pos.y / 8.0)
+
+		# Sprite — base alinhada ao ponto de mundo (offset sobe metade da altura)
+		var spr := Sprite2D.new()
+		spr.texture        = _get_tex(path)
+		spr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		spr.scale          = Vector2(s, s)
+		spr.offset         = Vector2(0.0, -float(spr_h) / 2.0)
+		body.add_child(spr)
+
+		# Colisão — retângulo chato na base da edificação
+		if has_col:
+			var rect := RectangleShape2D.new()
+			rect.size = Vector2(float(spr_w) * s * 0.55, 22.0)
+			var cs   := CollisionShape2D.new()
+			cs.shape    = rect
+			cs.position = Vector2(0.0, -8.0)
+			body.add_child(cs)
+
+		add_child(body)
+		_mark_occupied(col, row)
 
 func _pick_forest_tile(n: float, col: int, row: int) -> int:
 	var s := col * 31 + row * 97
