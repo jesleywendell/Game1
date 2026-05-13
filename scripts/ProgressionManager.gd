@@ -131,3 +131,21 @@ func reset_level() -> void:
 	save()
 	xp_changed.emit(data.current_xp, xp_required(data.level))
 	fragments_changed.emit(0)
+
+func reset_run() -> void:
+	var area := data.current_area
+	var frags := data.soul_fragments
+	data.level = 1
+	data.current_xp = 0.0
+	data.attack_damage_upgrades = 0
+	data.skill_damage_upgrades = 0
+	data.speed_upgrades = 0
+	data.max_health_upgrades = 0
+	data.current_area = area
+	data.soul_fragments = frags
+	save()
+	xp_changed.emit(data.current_xp, xp_required(data.level))
+	fragments_changed.emit(frags)
+	var player := get_tree().get_first_node_in_group("player")
+	if is_instance_valid(player) and player.has_method("reset_temp_upgrades"):
+		player.reset_temp_upgrades()

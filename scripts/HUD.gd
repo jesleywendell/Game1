@@ -185,8 +185,10 @@ func on_xp_changed(current: float, required: float) -> void:
 
 	var target := clampf(current / required * 100.0, 0.0, 100.0)
 
-	var tween := create_tween()
-	tween.tween_property(_xp_bar, "value", target, 0.3).set_ease(Tween.EASE_OUT)
+	if is_instance_valid(_tween):
+		_tween.kill()
+	_tween = create_tween()
+	_tween.tween_property(_xp_bar, "value", target, 0.3).set_ease(Tween.EASE_OUT)
 
 	_level_label.text = "Lv.%d" % ProgressionManager.data.level
 

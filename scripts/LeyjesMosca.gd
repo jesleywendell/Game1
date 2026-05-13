@@ -54,6 +54,7 @@ var _blood_circle_cd    := BLOOD_CIRCLE_CD_P1
 var _casting_blood      := false
 var _blood_frames: Array[Texture2D] = []
 var _player: Node     = null
+var _cached_player: Node2D = null
 var _last_facing      := "S"
 var _col_shape: CollisionShape2D
 var _sprite: AnimatedSprite2D
@@ -70,6 +71,7 @@ func _ready() -> void:
 	body_exited.connect(_on_body_exited)
 	await get_tree().create_timer(0.4).timeout
 	AudioManager.play_sfx("lejess_laugh")
+	_cached_player = get_tree().get_first_node_in_group("player")
 
 func _setup_sprite() -> void:
 	var tex: Texture2D = load(SPRITE_PATH)
@@ -100,8 +102,8 @@ func _setup_sprite() -> void:
 func _physics_process(delta: float) -> void:
 	if not is_inside_tree() or is_dead:
 		return
-	var player_node: Node2D = get_tree().get_first_node_in_group("player")
-	if player_node == null:
+	var player_node: Node2D = _cached_player
+	if not is_instance_valid(player_node):
 		return
 
 	var dist   := global_position.distance_to(player_node.global_position)
@@ -234,6 +236,7 @@ func _flash_hit() -> void:
 func _die() -> void:
 	is_dead = true
 	_player = null
+	_cached_player = null
 	set_physics_process(false)
 	_col_shape.set_deferred("disabled", true)
 	_sprite.stop()
@@ -318,7 +321,7 @@ func _cast_blood_circle() -> void:
 	get_parent().add_child(circle)
 	await get_tree().create_timer(3.5).timeout
 	_casting_blood = false
-	if not is_dead:
+	if not is_dead and is_inside_tree():
 		var t := create_tween()
 		t.tween_property(self, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.3)
 

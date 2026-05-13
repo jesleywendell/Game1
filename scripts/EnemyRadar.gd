@@ -1,6 +1,7 @@
 extends CanvasLayer
 
 var _canvas: Control
+var _frame := 0
 
 func _ready() -> void:
 	layer = 3
@@ -11,6 +12,9 @@ func _ready() -> void:
 	_canvas.draw.connect(_on_draw)
 
 func _process(_delta: float) -> void:
+	_frame = (_frame + 1) % 3
+	if _frame != 0:
+		return
 	_canvas.queue_redraw()
 
 func _on_draw() -> void:

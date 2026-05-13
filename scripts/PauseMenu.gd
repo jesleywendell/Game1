@@ -107,4 +107,4 @@ func _btn(path: String, x: float, y: float, w: float, h: float, cb: Callable) ->
 func _go_main() -> void:
 	hide()
 	get_tree().paused = false
-	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
+	TransitionScreen.fade_to("res://scenes/MainMenu.tscn")

@@ -454,6 +454,13 @@ func _remove_seizure_overlay() -> void:
 	_seizure_overlay = null
 	_seizure_bar     = null
 
+func reset_temp_upgrades() -> void:
+	_temp_damage_bonus  = 0.0
+	_temp_hp_bonus      = 0.0
+	_temp_speed_bonus   = 0.0
+	_temp_dash_cd_bonus = 0.0
+	_apply_stats()
+
 func _flash_hit() -> void:
 	var tween := create_tween()
 	tween.tween_property(sprite, "modulate", Color(2.0, 0.3, 0.3, 1.0), 0.05)

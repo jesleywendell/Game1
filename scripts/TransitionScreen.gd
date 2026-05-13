@@ -13,6 +13,7 @@ func _ready() -> void:
 	add_child(_rect)
 
 func fade_to(scene_path: String) -> void:
+	Engine.time_scale = 1.0
 	if _is_transitioning:
 		return
 	_is_transitioning = true

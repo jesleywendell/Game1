@@ -39,6 +39,7 @@ func _process(delta: float) -> void:
 		"fade":
 			_alpha = maxf(0.7 - (_phase_timer / FADE_TIME) * 0.7, 0.0)
 			if _phase_timer >= FADE_TIME:
+				set_monitoring(false)
 				queue_free()
 				return
 	var col := get_child(0) as CollisionShape2D

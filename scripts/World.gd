@@ -69,7 +69,7 @@ func _center_player() -> void:
 		p.position = Vector2(0, 960)
 	await get_tree().create_timer(0.6).timeout
 	_wave_manager.start_next_wave()
-	if OS.is_debug_build() and WaveManager.debug_start_wave > 0:
+	if WaveManager.debug_start_wave > 0:
 		_wave_manager.debug_skip_to_wave(WaveManager.debug_start_wave)
 		WaveManager.debug_start_wave = 0
 
@@ -92,11 +92,13 @@ func _on_wave_cleared(wave_number: int) -> void:
 	_wave_manager.start_next_wave()
 
 func _on_player_died() -> void:
-	var wave_reached: int = _wave_manager.current_wave if _wave_manager else 0
+	var wave_reached: int = _wave_manager.current_wave if _wave_manager else 1
+	var on_boss: bool = _wave_manager._boss_alive if _wave_manager else false
+	var checkpoint: int = 4 if on_boss else maxi(wave_reached, 1)
 	await get_tree().create_timer(1.5).timeout
-	_show_game_over_overlay(wave_reached)
+	_show_game_over_overlay(wave_reached, checkpoint)
 
-func _show_game_over_overlay(wave_reached: int = 0) -> void:
+func _show_game_over_overlay(wave_reached: int = 0, checkpoint_wave: int = 1) -> void:
 	get_tree().paused = true
 	var elapsed_sec: int = int((Time.get_ticks_msec() - _run_start_time) / 1000)
 	var minutes: int = elapsed_sec / 60
@@ -176,19 +178,25 @@ func _show_game_over_overlay(wave_reached: int = 0) -> void:
 	var bh0 := bw * (200.0 / 1113.0)
 	_go_btn(root, "res://assets/game_over/buttons/try_again.png", bx, by, bw, bh0,
 		func():
-			ProgressionManager.reset_level()
+			WaveManager.debug_start_wave = checkpoint_wave
+			ProgressionManager.reset_run()
+			get_tree().paused = false
 			TransitionScreen.fade_to("res://scenes/World.tscn"))
 	by += bh0 + gap
 
 	var bh1 := bw * (205.0 / 1113.0)
 	_go_btn(root, "res://assets/game_over/buttons/return_hub.png", bx, by, bw, bh1,
 		func():
+			WaveManager.debug_start_wave = 0
+			get_tree().paused = false
 			TransitionScreen.fade_to("res://scenes/Hub.tscn"))
 	by += bh1 + gap
 
 	var bh2 := bw * (210.0 / 1113.0)
 	_go_btn(root, "res://assets/game_over/buttons/main_menu.png", bx, by, bw, bh2,
 		func():
+			WaveManager.debug_start_wave = 0
+			get_tree().paused = false
 			TransitionScreen.fade_to("res://scenes/MainMenu.tscn"))
 
 	var tween := cl.create_tween()

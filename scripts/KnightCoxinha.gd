@@ -151,7 +151,7 @@ func _start_skill(player_node: Node2D) -> void:
 	sprite.animation = _anim_for_dir(_charge_dir)
 	sprite.frame = 0
 	await get_tree().create_timer(0.55).timeout
-	if is_dead:
+	if is_dead or not is_inside_tree():
 		return
 	_state = "skill_charge"
 	_charge_timer = CHARGE_DURATION

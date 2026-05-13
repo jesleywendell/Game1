@@ -549,6 +549,7 @@ func _show_forest_prompt() -> void:
 
 	var yes := _make_button("⚔  Descer", 20, 140)
 	yes.pressed.connect(func():
+		WaveManager.debug_start_wave = 0
 		get_tree().paused = false
 		TransitionScreen.fade_to("res://scenes/World.tscn")
 	)

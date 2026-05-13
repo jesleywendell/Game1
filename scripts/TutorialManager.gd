@@ -110,6 +110,9 @@ func _update_dots() -> void:
 			dot.add_theme_color_override("font_color", Color(0.35, 0.32, 0.38, 0.5))
 
 func _process(_delta: float) -> void:
+	if not is_instance_valid(_player):
+		queue_free()
+		return
 	if _fading or _player == null:
 		return
 	if _check_step(_step):
