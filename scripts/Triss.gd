@@ -9,7 +9,7 @@ const WALK_COLS  := 8
 const WALK_FPS   := 8.0
 const BOSS_SCALE := 1.5
 
-const ROW_DIRS := ["S", "SE", "E", "NE", "N"]
+const ROW_DIRS := ["S", "SE", "E", "NE"]  # rows 1-4; row 0 = idle/facing (não usar para walk)
 
 const MAP_X := Vector2(-1600.0, 2080.0)
 const MAP_Y := Vector2(8.0, 1848.0)
@@ -78,13 +78,13 @@ func _setup_sprite() -> void:
 		for col in WALK_COLS:
 			var atlas        := AtlasTexture.new()
 			atlas.atlas       = tex
-			atlas.region      = Rect2(col * FRAME_W, row * FRAME_H, FRAME_W, FRAME_H)
+			atlas.region      = Rect2(col * FRAME_W, (row + 1) * FRAME_H, FRAME_W, FRAME_H)
 			frames.add_frame(anim, atlas)
 	_sprite                = AnimatedSprite2D.new()
 	_sprite.sprite_frames  = frames
 	_sprite.scale          = Vector2(BOSS_SCALE, BOSS_SCALE)
-	_sprite.centered       = false
-	_sprite.offset         = Vector2(-FRAME_W / 2.0, -FRAME_H)
+	_sprite.centered       = true
+	_sprite.offset         = Vector2(0.0, -FRAME_H / 2.0)
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_child(_sprite)
 	_sprite.play("walk_S")
@@ -131,17 +131,19 @@ func _resolve_facing(d: Vector2) -> String:
 	return DIRS[int((deg + 22.5) / 45.0) % 8]
 
 func _play_walk(facing: String) -> void:
-	var flip        := facing in ["SW", "W", "NW"]
-	const BASE      := {"SW": "SE", "W": "E", "NW": "NE"}
-	var anim: String = "walk_" + (BASE[facing] as String if flip else facing)
+	var flip := facing in ["SW", "W", "NW"]
+	const REMAP := {"SW": "SE", "W": "E", "NW": "NE", "N": "NE"}
+	var dir: String = REMAP[facing] if REMAP.has(facing) else facing
+	var anim: String = "walk_" + dir
 	_sprite.flip_h = flip
 	if _sprite.animation != anim or not _sprite.is_playing():
 		_sprite.play(anim)
 
 func _play_idle(facing: String) -> void:
-	var flip        := facing in ["SW", "W", "NW"]
-	const BASE      := {"SW": "SE", "W": "E", "NW": "NE"}
-	var anim: String = "walk_" + (BASE[facing] as String if flip else facing)
+	var flip := facing in ["SW", "W", "NW"]
+	const REMAP := {"SW": "SE", "W": "E", "NW": "NE", "N": "NE"}
+	var dir: String = REMAP[facing] if REMAP.has(facing) else facing
+	var anim: String = "walk_" + dir
 	_sprite.flip_h = flip
 	if _sprite.animation != anim:
 		_sprite.animation = anim
