@@ -13,6 +13,8 @@ const SFX_PATHS := {
 	"boss_phase2":   "res://assets/audio/sfx_boss_phase2.ogg",
 	"triss_laugh":   "res://assets/audio/enemies/triss/risada/master_of_dreams_laugh_1_462-_1_.ogg",
 	"triss_attack":  "res://assets/audio/enemies/triss/atacando/lukas_tvrdon_kali_attack_scream_fanatic_3_104.ogg",
+	"lejess_laugh":  "res://assets/audio/enemies/lejess/risada/zapsplat_horror_demon_devil_evil_laugh_processed_004_60473.ogg",
+	"lejess_attack": "res://assets/audio/enemies/lejess/atacando/zapsplat_human_male_short_fight_vocalisation_037_22324.ogg",
 }
 const BTN_SFX_PATH      := "res://assets/audio/botoes/hover_click/sound_ex_machina_Buttons-Stone-Button.wav"
 const FOOTSTEP_PATH     := "res://assets/audio/jogador/walk/fase_01/zapsplat_foley_footsteps_barefoot_walking_artificial_grass_106409.ogg"
