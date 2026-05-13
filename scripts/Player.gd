@@ -29,9 +29,16 @@ const KNOCKBACK_FORCE := 120.0
 const REGEN_DELAY  := 10.0
 const REGEN_AMOUNT := 10.0
 const REGEN_TICK   := 1.0
+const MASH_REQUIRED     := 18
+const SEIZURE_FAIL_TIME := 3.5
 
 var current_health: float
 var is_dead := false
+var _blood_seized     := false
+var _mash_count       := 0
+var _seizure_timer    := 0.0
+var _seizure_overlay  : CanvasLayer = null
+var _seizure_bar      : ProgressBar = null
 var _base_speed: float
 var _base_attack_damage: float
 var _base_max_health: float
@@ -147,6 +154,13 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mouse_event := event as InputEventMouseButton
 		if mouse_event.button_index == MOUSE_BUTTON_LEFT and mouse_event.pressed:
+			if _blood_seized:
+				_mash_count += 1
+				if is_instance_valid(_seizure_bar):
+					_seizure_bar.value = float(_mash_count) / MASH_REQUIRED * 100.0
+				if _mash_count >= MASH_REQUIRED:
+					_escape_seizure()
+				return
 			if not get_tree().paused and not is_dead:
 				attack_requested = true
 
@@ -156,6 +170,13 @@ func _physics_process(delta: float) -> void:
 		sprite.modulate.a = 0.4 if (int(_invincibility_timer * 10) % 2 == 1) else 1.0
 		if _invincibility_timer <= 0.0:
 			sprite.modulate.a = 1.0
+	if _blood_seized:
+		_seizure_timer -= delta
+		if _seizure_timer <= 0.0:
+			_seizure_fail()
+		velocity = Vector2.ZERO
+		move_and_slide()
+		return
 	var move_dir := _get_move_input()
 
 	if Input.is_action_just_pressed("skill_q"):
@@ -348,6 +369,91 @@ func heal(amount: float) -> void:
 	current_health = minf(current_health + amount, max_health)
 	health_changed.emit(current_health, max_health)
 
+func apply_blood_seizure() -> void:
+	if _blood_seized or is_dead:
+		return
+	_blood_seized  = true
+	_mash_count    = 0
+	_seizure_timer = SEIZURE_FAIL_TIME
+	sprite.modulate = Color(1.2, 0.2, 0.2, 1.0)
+	AudioManager.play_sfx("damage_player")
+	JuiceManager.add_trauma(0.3)
+	_create_seizure_overlay()
+
+func _create_seizure_overlay() -> void:
+	var cl := CanvasLayer.new()
+	cl.layer = 15
+	cl.name  = "BloodSeizureOverlay"
+
+	var vignette := ColorRect.new()
+	vignette.color = Color(0.5, 0.0, 0.0, 0.35)
+	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	cl.add_child(vignette)
+
+	var lbl := Label.new()
+	lbl.text = "O SANGUE O CONSUMIU"
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.15, 0.15))
+	lbl.add_theme_font_size_override("font_size", 28)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	lbl.position.y = 280.0
+	cl.add_child(lbl)
+
+	var hint := Label.new()
+	hint.text = "CLIQUE RÁPIDO PARA ESCAPAR!"
+	hint.add_theme_color_override("font_color", Color(1.0, 0.6, 0.6))
+	hint.add_theme_font_size_override("font_size", 14)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	hint.position.y = 320.0
+	cl.add_child(hint)
+
+	var bar := ProgressBar.new()
+	bar.max_value           = 100.0
+	bar.value               = 0.0
+	bar.custom_minimum_size = Vector2(300.0, 24.0)
+	bar.show_percentage     = false
+	bar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	bar.position            = Vector2(-150.0, 355.0)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.8, 0.0, 0.0)
+	bar.add_theme_stylebox_override("fill", sb)
+	cl.add_child(bar)
+
+	get_tree().current_scene.add_child(cl)
+	_seizure_overlay = cl
+	_seizure_bar     = bar
+
+func _escape_seizure() -> void:
+	_remove_seizure_overlay()
+	sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	JuiceManager.add_trauma(0.4)
+	for n in get_tree().get_nodes_in_group("active_enemies"):
+		if n.get("is_boss") == true and n.get("is_dead") == false:
+			velocity += (global_position - n.global_position).normalized() * 350.0
+			break
+	var tween := create_tween()
+	tween.tween_property(sprite, "modulate", Color(2.0, 1.5, 1.5, 1.0), 0.05)
+	tween.tween_property(sprite, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.2)
+	AudioManager.play_sfx("dash")
+
+func _seizure_fail() -> void:
+	_blood_seized = false
+	_remove_seizure_overlay()
+	sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
+	var penalty := max_health * 0.35
+	drain_hp(penalty)
+	JuiceManager.add_trauma(0.6)
+	JuiceManager.spawn_blood(global_position, get_parent())
+	JuiceManager.spawn_damage_number(penalty, global_position, get_parent(), true)
+	AudioManager.play_sfx("damage_player")
+
+func _remove_seizure_overlay() -> void:
+	if is_instance_valid(_seizure_overlay):
+		_seizure_overlay.queue_free()
+	_seizure_overlay = null
+	_seizure_bar     = null
+
 func _flash_hit() -> void:
 	var tween := create_tween()
 	tween.tween_property(sprite, "modulate", Color(2.0, 0.3, 0.3, 1.0), 0.05)
@@ -357,6 +463,7 @@ func _die() -> void:
 	if is_dead:
 		return
 	is_dead = true
+	_remove_seizure_overlay()
 	AudioManager.stop_footsteps()
 	AudioManager.play_sfx("player_die")
 	set_physics_process(false)

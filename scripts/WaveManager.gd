@@ -1,4 +1,5 @@
 extends Node
+class_name WaveManager
 
 signal wave_started(wave_number: int)
 signal wave_cleared(wave_number: int)
@@ -43,6 +44,8 @@ var _frenzy_active       := false
 var _chicken_boss_active := false
 var _saved_wave          := 0
 var _saved_alive_count   := 0
+static var debug_start_wave := 0
+
 var _world: Node2D
 
 func init(world: Node2D) -> void:

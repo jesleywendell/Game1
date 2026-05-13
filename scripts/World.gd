@@ -69,6 +69,9 @@ func _center_player() -> void:
 		p.position = Vector2(0, 960)
 	await get_tree().create_timer(0.6).timeout
 	_wave_manager.start_next_wave()
+	if OS.is_debug_build() and WaveManager.debug_start_wave > 0:
+		_wave_manager.debug_skip_to_wave(WaveManager.debug_start_wave)
+		WaveManager.debug_start_wave = 0
 
 func _start_tutorial_if_needed() -> void:
 	if ProgressionManager.data.level > 1:
@@ -326,6 +329,29 @@ func _spawn_exit_portal() -> void:
 	var tw := create_tween()
 	tw.tween_property(portal, "scale", Vector2.ONE, 0.6).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
+func _get_debug_step() -> int:
+	if _wave_manager == null:
+		return 1
+	var area := ProgressionManager.get_current_area()
+	var wave: int = _wave_manager.current_wave
+	if _wave_manager._boss_alive:
+		wave = 4
+	return (area - 1) * 4 + clamp(wave, 1, 4)
+
+func _debug_navigate(delta: int) -> void:
+	var step := _get_debug_step() + delta
+	if step < 1 or step > 12:
+		return
+	var target_area := (step - 1) / 4 + 1
+	var target_wave := (step - 1) % 4 + 1
+	if target_area != ProgressionManager.get_current_area():
+		ProgressionManager.data.current_area = target_area
+		WaveManager.debug_start_wave = target_wave
+		TransitionScreen.fade_to("res://scenes/World.tscn")
+	else:
+		_boss_intro_fired = false
+		_wave_manager.debug_skip_to_wave(target_wave)
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_fullscreen"):
 		var mode := DisplayServer.window_get_mode()
@@ -341,11 +367,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif event.is_action_pressed("debug_boss"):
 			_wave_manager.debug_skip_to_wave(4)
 		elif event.is_action_pressed("debug_next_area"):
-			ProgressionManager.advance_area()
-			TransitionScreen.fade_to("res://scenes/World.tscn")
+			_debug_navigate(1)
 		elif event.is_action_pressed("debug_prev_area"):
-			ProgressionManager.data.current_area = max(1, ProgressionManager.data.current_area - 1)
-			TransitionScreen.fade_to("res://scenes/World.tscn")
+			_debug_navigate(-1)
 
 func _make_light_texture() -> Texture2D:
 	var img := Image.create(128, 128, false, Image.FORMAT_RGBA8)

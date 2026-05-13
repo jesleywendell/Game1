@@ -20,6 +20,10 @@ const FIREBALL        := preload("res://scripts/LeyjesFireball.gd")
 const FIREBALL_CD_P1  := 5.5
 const FIREBALL_CD_P2  := 3.0
 
+const BLOOD_CIRCLE_SKILL  := preload("res://scripts/BloodCircleSkill.gd")
+const BLOOD_CIRCLE_CD_P1  := 18.0
+const BLOOD_CIRCLE_CD_P2  := 11.0
+
 const MAP_X := Vector2(-1600.0, 2080.0)
 const MAP_Y := Vector2(8.0, 1848.0)
 const DETECT_RANGE := 450.0
@@ -45,6 +49,9 @@ var _summon_timer     := 5.0
 var _summon_cd        := SUMMON_CD_P1
 var _fireball_timer   := 3.0
 var _fireball_cd      := FIREBALL_CD_P1
+var _blood_circle_timer := 8.0
+var _blood_circle_cd    := BLOOD_CIRCLE_CD_P1
+var _casting_blood      := false
 var _blood_frames: Array[Texture2D] = []
 var _player: Node     = null
 var _last_facing      := "S"
@@ -98,7 +105,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var dist   := global_position.distance_to(player_node.global_position)
-	var moving := dist > STOP_RANGE
+	var moving := dist > STOP_RANGE and not _casting_blood
 
 	if moving:
 		var dir := (player_node.global_position - global_position).normalized()
@@ -126,6 +133,10 @@ func _physics_process(delta: float) -> void:
 		if _fireball_timer <= 0.0:
 			_fireball_timer = _fireball_cd
 			_fire_fireball(player_node)
+		_blood_circle_timer -= delta
+		if _blood_circle_timer <= 0.0 and not _casting_blood:
+			_blood_circle_timer = _blood_circle_cd
+			_cast_blood_circle()
 
 	z_index = int(global_position.y / 8.0)
 
@@ -200,9 +211,11 @@ func _do_summon() -> void:
 		get_parent().add_child(fly)
 
 func _trigger_phase2() -> void:
-	_phase2_triggered = true
-	_summon_cd       = SUMMON_CD_P2
-	_fireball_cd     = FIREBALL_CD_P2
+	_phase2_triggered  = true
+	_summon_cd         = SUMMON_CD_P2
+	_fireball_cd       = FIREBALL_CD_P2
+	_blood_circle_cd   = BLOOD_CIRCLE_CD_P2
+	_blood_circle_timer = 3.0
 	MOVE_SPEED      *= 1.7
 	DAMAGE          *= 1.3
 	DAMAGE_INTERVAL  = 0.65
@@ -286,6 +299,28 @@ func apply_frenzy() -> void:
 	DAMAGE     *= 1.5
 	MOVE_SPEED *= 1.5
 	modulate    = Color(1.3, 0.3, 0.2, 1.0)
+
+func _cast_blood_circle() -> void:
+	_casting_blood = true
+	var tween := create_tween()
+	tween.tween_property(self, "modulate", Color(2.0, 0.15, 0.15, 1.0), 0.15)
+	tween.tween_property(self, "modulate", Color(1.0, 0.3, 0.3, 1.0), 0.35)
+	for i in 4:
+		var angle := TAU * i / 4.0
+		_spawn_blood_vfx(global_position + Vector2(cos(angle), sin(angle)) * 45.0)
+	AudioManager.play_sfx("lejess_attack")
+	await get_tree().create_timer(0.5).timeout
+	if is_dead or not is_inside_tree():
+		_casting_blood = false
+		return
+	var circle := BLOOD_CIRCLE_SKILL.new()
+	circle.global_position = global_position
+	get_parent().add_child(circle)
+	await get_tree().create_timer(3.5).timeout
+	_casting_blood = false
+	if not is_dead:
+		var t := create_tween()
+		t.tween_property(self, "modulate", Color(1.0, 1.0, 1.0, 1.0), 0.3)
 
 func _draw() -> void:
 	if is_dead or current_health >= MAX_HEALTH or not is_boss:
