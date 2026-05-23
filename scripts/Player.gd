@@ -23,7 +23,7 @@ const SLASH_FRAMES   := 7
 const DASH_VFX       := preload("res://scripts/DashVFX.gd")
 # Row 1=S, 2=SE, 3=E, 4=N — SW/W/NW/NE/NW use E/SE as base with flip_h
 # Row 5 = death animation (reserved)
-const BASE_WALK_DIRS: Array[String] = ["S", "SE", "E", "N"]
+const BASE_WALK_DIRS: Array[String] = ["S", "SW", "E", "N"]
 const INVINCIBILITY_DURATION := 0.6
 const KNOCKBACK_FORCE := 120.0
 const REGEN_DELAY  := 10.0
@@ -238,8 +238,8 @@ func _update_animation(move_dir: Vector2) -> void:
 	if visual_dir != Vector2.ZERO:
 		last_facing = _resolve_facing(visual_dir)
 
-	var flip := last_facing in ["SW", "W", "NW"]
-	var base: String = {"SW": "SE", "W": "E", "NW": "E", "NE": "E"}.get(last_facing, last_facing)
+	var flip := last_facing in ["SE", "W", "NW"]
+	var base: String = {"SE": "SW", "W": "E", "NW": "E", "NE": "E"}.get(last_facing, last_facing)
 	var anim := "walk_" + base
 	sprite.flip_h = flip
 
@@ -297,7 +297,7 @@ func _start_attack() -> void:
 	hit_targets.clear()
 	AudioManager.play_sfx("attack")
 	_enable_attack_hitbox(attack_direction)
-	sprite.flip_h = last_facing in ["SW", "W", "NW"]
+	sprite.flip_h = last_facing in ["SE", "W", "NW"]
 	sprite.stop()
 	if is_instance_valid(_slash_vfx):
 		_slash_vfx.position = attack_direction.normalized() * (attack_hitbox_distance + 10.0)

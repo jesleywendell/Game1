@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/KnightCoxinha.gd" id="1"]
 
 [sub_resource type="CircleShape2D" id="2"]
-radius = 24.0
+radius = 72.0
 
 [node name="KnightCoxinha" type="Area2D"]
 collision_layer = 1

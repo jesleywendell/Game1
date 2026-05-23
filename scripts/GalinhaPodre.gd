@@ -13,6 +13,10 @@ const BAR_W := 60.0
 const BAR_H := 6.0
 const BAR_Y := -35.0
 
+const GALINHA_SPRITE_PATH := "res://assets/enemies/galinha_podre/galinha_walk.png"
+const FRAME_W    := 209
+const FRAME_H    := 209
+
 var current_health  := MAX_HEALTH
 var is_dead         := false
 var _damage_timer   := 0.0
@@ -24,13 +28,15 @@ var _col_shape: CollisionShape2D
 func _ready() -> void:
 	var col := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
-	circle.radius = 12.0
+	circle.radius = 20.0
 	col.shape = circle
 	add_child(col)
 	_col_shape = col
 	body_entered.connect(_on_body_entered)
 	body_exited.connect(_on_body_exited)
 	_cached_player = get_tree().get_first_node_in_group("player")
+	if _uses_galinha_sprite():
+		_setup_galinha_sprite()
 
 func _physics_process(delta: float) -> void:
 	if not is_inside_tree():
@@ -43,6 +49,7 @@ func _physics_process(delta: float) -> void:
 	if dist > STOP_RANGE:
 		var dir := (player_node.global_position - global_position).normalized()
 		position += dir * MOVE_SPEED * delta
+		_update_sprite_direction(dir)
 
 	z_index = int(global_position.y / 8.0)
 
@@ -97,6 +104,27 @@ func _die() -> void:
 	tween.tween_property(self, "modulate:a", 0.0, 0.4)
 	tween.tween_callback(queue_free)
 
+func _uses_galinha_sprite() -> bool:
+	return true
+
+func _setup_galinha_sprite() -> void:
+	var tex := load(GALINHA_SPRITE_PATH) as Texture2D
+	var spr := Sprite2D.new()
+	spr.texture = tex
+	spr.region_enabled = true
+	spr.region_rect = Rect2(0, 0, FRAME_W, FRAME_H)
+	spr.offset = Vector2(-FRAME_W / 2.0, -FRAME_H * 0.8)
+	spr.scale = Vector2(0.3, 0.3)
+	spr.name = "GalinhaSprite"
+	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	add_child(spr)
+
+func _update_sprite_direction(dir: Vector2) -> void:
+	var spr := get_node_or_null("GalinhaSprite") as Sprite2D
+	if spr == null or dir == Vector2.ZERO:
+		return
+	spr.flip_h = dir.x > 0
+
 func apply_frenzy() -> void:
 	if _frenzy_applied:
 		return
@@ -106,42 +134,12 @@ func apply_frenzy() -> void:
 	modulate = Color(1.3, 0.3, 0.2, 1.0)
 
 func _draw() -> void:
-	if not is_dead:
-		# Wings — translucent, behind body
-		draw_colored_polygon(PackedVector2Array([Vector2(-4,-2),Vector2(-18,-10),Vector2(-20,0),Vector2(-14,6)]), Color(0.7,0.8,0.9,0.35))
-		draw_colored_polygon(PackedVector2Array([Vector2(4,-2),Vector2(18,-10),Vector2(20,0),Vector2(14,6)]), Color(0.7,0.8,0.9,0.35))
-		draw_colored_polygon(PackedVector2Array([Vector2(-3,2),Vector2(-15,4),Vector2(-16,10),Vector2(-10,12)]), Color(0.7,0.8,0.9,0.28))
-		draw_colored_polygon(PackedVector2Array([Vector2(3,2),Vector2(15,4),Vector2(16,10),Vector2(10,12)]), Color(0.7,0.8,0.9,0.28))
-		# Abdomen
-		draw_circle(Vector2(0,6), 8.0, Color(0.12,0.14,0.10))
-		draw_circle(Vector2(0,2), 5.0, Color(0.18,0.22,0.15))
-		draw_line(Vector2(-7,4), Vector2(7,4), Color(0.28,0.32,0.22,0.6), 1.5)
-		draw_line(Vector2(-8,7), Vector2(8,7), Color(0.28,0.32,0.22,0.6), 1.5)
-		draw_line(Vector2(-7,10), Vector2(7,10), Color(0.28,0.32,0.22,0.6), 1.5)
-		# Thorax
-		draw_circle(Vector2(0,-3), 5.0, Color(0.20,0.24,0.18))
-		# Head
-		draw_circle(Vector2(0,-10), 5.5, Color(0.15,0.18,0.12))
-		# Compound eyes
-		draw_circle(Vector2(-4,-11), 3.5, Color(0.7,0.05,0.05))
-		draw_circle(Vector2(4,-11), 3.5, Color(0.7,0.05,0.05))
-		draw_circle(Vector2(-3,-12), 1.0, Color(1.0,0.3,0.3,0.5))
-		draw_circle(Vector2(5,-12), 1.0, Color(1.0,0.3,0.3,0.5))
-		# Proboscis
-		draw_line(Vector2(0,-5), Vector2(0,-1), Color(0.15,0.18,0.12), 1.5)
-		# Legs
-		draw_line(Vector2(-4,0), Vector2(-12,-2), Color(0.15,0.18,0.12), 1.0)
-		draw_line(Vector2(-4,3), Vector2(-13,5), Color(0.15,0.18,0.12), 1.0)
-		draw_line(Vector2(-4,6), Vector2(-12,10), Color(0.15,0.18,0.12), 1.0)
-		draw_line(Vector2(4,0), Vector2(12,-2), Color(0.15,0.18,0.12), 1.0)
-		draw_line(Vector2(4,3), Vector2(13,5), Color(0.15,0.18,0.12), 1.0)
-		draw_line(Vector2(4,6), Vector2(12,10), Color(0.15,0.18,0.12), 1.0)
 	if is_dead or current_health >= MAX_HEALTH:
 		return
 	var x := -BAR_W / 2.0
-	draw_rect(Rect2(x, BAR_Y, BAR_W, BAR_H), Color(0.15,0.0,0.0,0.85))
+	draw_rect(Rect2(x, BAR_Y, BAR_W, BAR_H), Color(0.15, 0.0, 0.0, 0.85))
 	var fill := BAR_W * (current_health / MAX_HEALTH)
-	draw_rect(Rect2(x, BAR_Y, fill, BAR_H), Color(0.9,0.1,0.1,1.0))
+	draw_rect(Rect2(x, BAR_Y, fill, BAR_H), Color(0.9, 0.1, 0.1, 1.0))
 
 func _on_body_entered(body: Node) -> void:
 	if body.has_method("take_damage"):

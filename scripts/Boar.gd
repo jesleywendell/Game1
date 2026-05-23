@@ -10,7 +10,6 @@ const MAP_X := Vector2(-1600.0, 2080.0)
 const MAP_Y := Vector2(8.0, 1848.0)
 const FRAME_W         := 41
 const FRAME_H         := 25
-const IDLE_FRAMES     := 7
 
 const BAR_W := 60.0
 const BAR_H := 6.0
@@ -22,7 +21,7 @@ var xp_reward       := 25.0
 var _damage_timer   := 0.0
 var _player: Node   = null
 
-@onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
+var sprite: Sprite2D
 
 func _ready() -> void:
 	_setup_animation()
@@ -30,18 +29,15 @@ func _ready() -> void:
 	body_exited.connect(_on_body_exited)
 
 func _setup_animation() -> void:
-	var frames := SpriteFrames.new()
+	sprite = Sprite2D.new()
 	var tex: Texture2D = load("res://assets/critters/critters/boar/boar_SE_idle_strip.png")
-	frames.add_animation("idle")
-	frames.set_animation_speed("idle", 8.0)
-	frames.set_animation_loop("idle", true)
-	for i in IDLE_FRAMES:
-		var atlas := AtlasTexture.new()
-		atlas.atlas = tex
-		atlas.region = Rect2(i * FRAME_W, 0, FRAME_W, FRAME_H)
-		frames.add_frame("idle", atlas)
-	sprite.sprite_frames = frames
-	sprite.play("idle")
+	var atlas := AtlasTexture.new()
+	atlas.atlas = tex
+	atlas.region = Rect2(0, 0, FRAME_W, FRAME_H)
+	sprite.texture = atlas
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sprite.scale = Vector2(3.0, 3.0)
+	add_child(sprite)
 
 func _physics_process(delta: float) -> void:
 	if not is_inside_tree():
@@ -53,6 +49,7 @@ func _physics_process(delta: float) -> void:
 	if dist < DETECT_RANGE and dist > STOP_RANGE:
 		var dir := (player_node.global_position - global_position).normalized()
 		position += dir * MOVE_SPEED * delta
+		sprite.flip_h = dir.x < 0
 	position.x = clampf(position.x, MAP_X.x, MAP_X.y)
 	position.y = clampf(position.y, MAP_Y.x, MAP_Y.y)
 	if _player == null:

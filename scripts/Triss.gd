@@ -55,7 +55,7 @@ var _sprite: AnimatedSprite2D
 func _ready() -> void:
 	var col    := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
-	circle.radius = 22.0
+	circle.radius = 44.0
 	col.shape = circle
 	add_child(col)
 	_col_shape = col

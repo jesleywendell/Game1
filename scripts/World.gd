@@ -179,7 +179,6 @@ func _show_game_over_overlay(wave_reached: int = 0, checkpoint_wave: int = 1) ->
 	_go_btn(root, "res://assets/game_over/buttons/try_again.png", bx, by, bw, bh0,
 		func():
 			WaveManager.debug_start_wave = checkpoint_wave
-			ProgressionManager.data.current_area = 1
 			get_tree().paused = false
 			TransitionScreen.fade_to("res://scenes/World.tscn"))
 	by += bh0 + gap

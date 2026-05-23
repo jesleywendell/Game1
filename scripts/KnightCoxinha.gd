@@ -1,10 +1,9 @@
 extends Area2D
 
-# Walk spritesheet: 1086x1448 → 6 colunas × 8 linhas, cada frame 181×181
-const FRAME_W    := 181
-const FRAME_H    := 181
+const FRAME_W    := 64
+const FRAME_H    := 64
 const WALK_COLS  := 6
-const WALK_ROWS  := 8
+const WALK_ROWS  := 5
 const WALK_FPS   := 8.0
 const MAP_X := Vector2(-1600.0, 2080.0)
 const MAP_Y := Vector2(8.0, 1848.0)
@@ -22,7 +21,7 @@ const CHARGE_HIT_DIST := 64.0
 
 const BAR_W := 70.0
 const BAR_H := 6.0
-const BAR_Y := -115.0
+const BAR_Y := -210.0
 
 var DAMAGE          := 20.0
 var DAMAGE_INTERVAL := 1.0
@@ -44,18 +43,16 @@ var _last_dir      := Vector2.RIGHT
 
 @onready var sprite: AnimatedSprite2D = $AnimatedSprite2D
 
-# Ordem das linhas na spritesheet (topo → baixo).
-# Se as direções aparecerem erradas no jogo, reordene estes valores.
 const ROW_ORDER := [
-	"walk_SE", "walk_S", "walk_SW", "walk_W",
-	"walk_NW", "walk_N", "walk_NE", "walk_E",
+	"walk_S", "walk_SE", "walk_W", "walk_NW", "walk_N",
 ]
 
-# Ângulo da velocidade (0° = direita, sentido horário) → animação, 8 setores de 45°
 const SECTOR_ANIMS := [
 	"walk_E", "walk_SE", "walk_S", "walk_SW",
 	"walk_W", "walk_NW", "walk_N", "walk_NE",
 ]
+
+const MIRROR_MAP := {"walk_E": "walk_W", "walk_NE": "walk_NW", "walk_SW": "walk_SE"}
 
 func _ready() -> void:
 	_setup_animation()
@@ -64,7 +61,7 @@ func _ready() -> void:
 
 func _setup_animation() -> void:
 	var frames := SpriteFrames.new()
-	var tex: Texture2D = load("res://assets/enemies/knight_coxinha/walk/knight_coxinha_walk.png")
+	var tex: Texture2D = load("res://assets/enemies/knight_coxinha/walk/cavaleiro_coxinha.png")
 	for row_idx in WALK_ROWS:
 		var anim: String = ROW_ORDER[row_idx]
 		frames.add_animation(anim)
@@ -76,16 +73,17 @@ func _setup_animation() -> void:
 			atlas.region = Rect2(col * FRAME_W, row_idx * FRAME_H, FRAME_W, FRAME_H)
 			frames.add_frame(anim, atlas)
 	sprite.sprite_frames = frames
-	# Ancora nos pes (base do frame) em vez de centralizar no meio.
-	# Evita o efeito de "sprite se movendo dentro de si" causado pela
-	# variacao de posicao do personagem entre frames do ciclo de caminhada.
 	sprite.centered = false
 	sprite.offset = Vector2(-FRAME_W / 2.0, -FRAME_H)
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	sprite.scale = Vector2(3.0, 3.0)
 	sprite.play("walk_SE")
 
 func _anim_for_dir(dir: Vector2) -> String:
 	var deg := fmod(rad_to_deg(dir.angle()) + 360.0, 360.0)
-	return SECTOR_ANIMS[int((deg + 22.5) / 45.0) % 8]
+	var raw: String = SECTOR_ANIMS[int((deg + 22.5) / 45.0) % 8]
+	sprite.flip_h = MIRROR_MAP.has(raw)
+	return MIRROR_MAP.get(raw, raw) as String
 
 func _physics_process(delta: float) -> void:
 	if is_dead or not is_inside_tree():
@@ -137,7 +135,7 @@ func _physics_process(delta: float) -> void:
 		_damage_timer -= delta
 		if _damage_timer <= 0.0:
 			_damage_timer = DAMAGE_INTERVAL
-			AudioManager.play_sfx("enemy_attack")
+			_play_attack_sfx()
 			_player.take_damage(DAMAGE, Vector2.ZERO)
 
 	z_index = int(global_position.y / 8.0)
@@ -147,6 +145,7 @@ func _start_skill(player_node: Node2D) -> void:
 	_charge_dir = (player_node.global_position - global_position).normalized()
 	_last_dir = _charge_dir
 	_state = "skill_windup"
+	AudioManager.play_sfx("coxinha_windup")
 	sprite.stop()
 	sprite.animation = _anim_for_dir(_charge_dir)
 	sprite.frame = 0
@@ -160,7 +159,7 @@ func _start_skill(player_node: Node2D) -> void:
 func _check_charge_hit(player_node: Node2D) -> void:
 	if global_position.distance_to(player_node.global_position) < CHARGE_HIT_DIST:
 		if player_node.has_method("take_damage"):
-			AudioManager.play_sfx("enemy_attack")
+			_play_attack_sfx()
 			player_node.take_damage(SKILL_DAMAGE, _charge_dir)
 		_end_skill()
 
@@ -210,7 +209,7 @@ func _die() -> void:
 	ProgressionManager.add_xp(xp_reward)
 	var frag_amount := randi_range(10, 20) if is_boss else randi_range(1, 3)
 	ProgressionManager.add_fragments(frag_amount)
-	AudioManager.play_sfx("enemy_die")
+	AudioManager.play_sfx("coxinha_die")
 	JuiceManager.spawn_blood(global_position, get_parent())
 	JuiceManager.apply_hitstop(0.1)
 	JuiceManager.add_trauma(0.35)
@@ -228,6 +227,9 @@ func apply_frenzy() -> void:
 	DAMAGE     *= 1.5
 	MOVE_SPEED *= 1.5
 	modulate = Color(1.3, 0.3, 0.2, 1.0)
+
+func _play_attack_sfx() -> void:
+	AudioManager.play_sfx("coxinha_attack" + str(randi_range(1, 2)))
 
 func _draw() -> void:
 	if is_dead or current_health >= MAX_HEALTH or not is_boss:
